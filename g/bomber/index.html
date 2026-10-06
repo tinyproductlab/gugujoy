@@ -99,6 +99,9 @@ function buildLevel(lv, rand){
     else grid[y].push(rand()<0.72?2:0);
   }}
   grid[1][1]=0; grid[1][2]=0; grid[2][1]=0; // 出生点安全
+  // L 形安全走廊：横竖各 4 格，保证放下第一颗炸弹后有地方躲火焰
+  var sx;
+  for(sx=1;sx<=4;sx++){ grid[1][sx]=0; grid[sx][1]=0; }
   var cfg=LEVEL_CFG[lv]||LEVEL_CFG[1];
   var spots=[];
   for(y=1;y<ROWS-1;y++)for(x=1;x<COLS-1;x++){
@@ -116,14 +119,14 @@ function buildLevel(lv, rand){
 function resetGame(){
   S={score:0,level:1,phase:'play',t:0,
      player:{x:1.5,y:1.5,speed:4.2,range:2,maxBombs:1,alive:true},
-     bombs:[],flames:[],powerups:{},input:[0,0],deathT:0,grid:null,enemies:[]};
+     bombs:[],flames:[],powerups:{},debris:[],input:[0,0],deathT:0,grid:null,enemies:[]};
   scoreEl.textContent='0';
   startLevel(1);
 }
 function startLevel(lv){
   var b=buildLevel(lv);
   S.grid=b.grid; S.enemies=b.enemies;
-  S.bombs=[]; S.flames=[]; S.powerups={};
+  S.bombs=[]; S.flames=[]; S.powerups={}; S.debris=[];
   S.player.x=1.5; S.player.y=1.5; S.player.alive=true;
   S.level=lv; S.phase='play'; S.input=[0,0];
   levelEl.textContent=lv; scoreEl.textContent=S.score;
@@ -185,10 +188,26 @@ function flameCells(x,y,range){
       t=S.grid[ny][nx];
       if(t===1) break;
       cells.push([nx,ny]);
-      if(t===2){ S.grid[ny][nx]=0; addScore(10); maybeDrop(nx,ny); break; }
+      if(t===2){ S.grid[ny][nx]=0; addScore(10); maybeDrop(nx,ny); spawnDebris(nx,ny); break; }
     }
   }
   return cells;
+}
+function spawnDebris(cx,cy){
+  if(!S.debris) return;
+  var bx=cx*CELL+CELL/2, by=cy*CELL+CELL/2;
+  var cols=['#D99A4E','#B4762F','#F0BE78'];
+  for(var i=0;i<6;i++){
+    S.debris.push({x:bx,y:by,vx:(Math.random()-0.5)*200,vy:-Math.random()*180-30,
+      life:0.55,max:0.55,c:cols[i%3],s:3+Math.random()*4});
+  }
+}
+function updateDebris(dt){
+  for(var i=S.debris.length-1;i>=0;i--){
+    var d=S.debris[i];
+    d.life-=dt; if(d.life<=0){S.debris.splice(i,1);continue;}
+    d.vy+=520*dt; d.x+=d.vx*dt; d.y+=d.vy*dt;
+  }
 }
 function inCells(x,y,cells){
   for(var i=0;i<cells.length;i++) if(cells[i][0]===x&&cells[i][1]===y) return true;
@@ -260,7 +279,11 @@ function tick(dt){
     var d=S.input;
     if(d[0]||d[1]) moveEntity(p,d[0],d[1],dt,true);
     var pcx=Math.floor(p.x), pcy=Math.floor(p.y);
-    for(i=0;i<S.bombs.length;i++){var b=S.bombs[i]; if(b.x!==pcx||b.y!==pcy) b.pass=false;}
+    for(i=0;i<S.bombs.length;i++){
+      var b=S.bombs[i];
+      // 碰撞盒完全离开炸弹格后，炸弹才变实心（否则会被自己的炸弹粘住）
+      if(b.pass&&(p.x+0.31<=b.x||p.x-0.31>=b.x+1||p.y+0.31<=b.y||p.y-0.31>=b.y+1)) b.pass=false;
+    }
     var k=pcx+','+pcy;
     if(S.powerups[k]){applyPower(S.powerups[k]);delete S.powerups[k];}
   }
@@ -281,6 +304,7 @@ function tick(dt){
   }
   updateBombs(dt);
   updateFlames(dt);
+  updateDebris(dt);
   if(p.alive){
     for(i=0;i<S.enemies.length;i++){
       e=S.enemies[i];
@@ -337,14 +361,17 @@ function draw(){
   for(y=0;y<ROWS;y++)for(x=0;x<COLS;x++){
     var t=S.grid[y][x], px=x*CELL, py=y*CELL;
     if(t===1){
-      ctx.fillStyle='#C89B6D'; rr(px+1,py+1,CELL-2,CELL-2,6); ctx.fill();
+      var pg=ctx.createLinearGradient(0,py,0,py+CELL);
+      pg.addColorStop(0,'#D8AC7C'); pg.addColorStop(1,'#BC8C5B');
+      ctx.fillStyle=pg; rr(px+1,py+1,CELL-2,CELL-2,6); ctx.fill();
+      ctx.strokeStyle='rgba(255,240,214,.55)'; ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(px+6,py+3.5);ctx.lineTo(px+CELL-6,py+3.5);ctx.stroke();
       ctx.strokeStyle='rgba(92,61,46,.25)'; ctx.lineWidth=2;
       ctx.beginPath();ctx.moveTo(px+4,py+CELL/2);ctx.lineTo(px+CELL-4,py+CELL/2);ctx.stroke();
+      ctx.strokeStyle='#A97B4E'; ctx.lineWidth=1.5;
+      rr(px+1,py+1,CELL-2,CELL-2,6); ctx.stroke();
     }else if(t===2){
-      ctx.fillStyle='#EDBE7E'; rr(px+3,py+3,CELL-6,CELL-6,5); ctx.fill();
-      ctx.strokeStyle='#D9A05A'; ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(px+8,py+8);ctx.lineTo(px+CELL-8,py+CELL-8);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(px+CELL-8,py+8);ctx.lineTo(px+8,py+CELL-8);ctx.stroke();
+      drawBrick(x,y,px,py);
     }
   }
   var k;
@@ -353,6 +380,14 @@ function draw(){
     var pp=k.split(','), icon=S.powerups[k]==='fire'?'🔥':(S.powerups[k]==='bomb'?'💣':'👟');
     ctx.fillText(icon,(+pp[0])*CELL+CELL/2,(+pp[1])*CELL+CELL/2+1);
   }
+  var di;
+  for(di=0;di<S.debris.length;di++){
+    var db=S.debris[di];
+    ctx.globalAlpha=Math.max(0,db.life/db.max);
+    ctx.fillStyle=db.c;
+    ctx.fillRect(db.x-db.s/2,db.y-db.s/2,db.s,db.s);
+  }
+  ctx.globalAlpha=1;
   var i;
   for(i=0;i<S.bombs.length;i++) drawBomb(S.bombs[i]);
   for(i=0;i<S.flames.length;i++){
@@ -367,6 +402,28 @@ function draw(){
   }
   for(i=0;i<S.enemies.length;i++) if(S.enemies[i].alive) drawEnemy(S.enemies[i]);
   if(S.player.alive) drawPlayer();
+}
+function drawBrick(x,y,px,py){
+  var w=CELL-4,h=CELL-4,x0=px+2,y0=py+2;
+  var g=ctx.createLinearGradient(0,y0,0,y0+h);
+  g.addColorStop(0,'#F0BE78'); g.addColorStop(1,'#D99A4E');
+  ctx.fillStyle=g; rr(x0,y0,w,h,6); ctx.fill();
+  // 每块砖轻微色差（按坐标哈希，不闪烁）
+  var j=(((x*7+y*13)%5)+5)%5/5*0.09;
+  ctx.fillStyle='rgba(120,60,20,'+j.toFixed(3)+')'; rr(x0,y0,w,h,6); ctx.fill();
+  // 砖缝：两层砖，竖缝错开
+  ctx.strokeStyle='rgba(122,72,28,.55)'; ctx.lineWidth=2;
+  var midY=y0+h/2;
+  ctx.beginPath();ctx.moveTo(x0+2,midY);ctx.lineTo(x0+w-2,midY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x0+w*0.36,y0+2);ctx.lineTo(x0+w*0.36,midY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x0+w*0.68,midY);ctx.lineTo(x0+w*0.68,y0+h-2);ctx.stroke();
+  // 明暗面
+  ctx.strokeStyle='rgba(255,240,214,.7)';
+  ctx.beginPath();ctx.moveTo(x0+5,y0+1.5);ctx.lineTo(x0+w-5,y0+1.5);ctx.stroke();
+  ctx.strokeStyle='rgba(122,72,28,.45)';
+  ctx.beginPath();ctx.moveTo(x0+5,y0+h-1.5);ctx.lineTo(x0+w-5,y0+h-1.5);ctx.stroke();
+  ctx.strokeStyle='#B4762F'; ctx.lineWidth=1.5;
+  rr(x0,y0,w,h,6); ctx.stroke();
 }
 function drawBomb(b){
   var px=b.x*CELL+CELL/2, py=b.y*CELL+CELL/2;
@@ -436,6 +493,8 @@ nextBtn.onclick=function(){
 };
 var held={};
 function recomputeInput(){
+  var tids=Object.keys(touchDirs||{});
+  if(tids.length){S.input=touchDirs[tids[tids.length-1]];return;} // 触屏优先
   var order=held.order||[];
   for(var i=order.length-1;i>=0;i--){
     if(held[order[i]]){S.input=held[order[i]];return;}
@@ -455,15 +514,27 @@ document.addEventListener('keyup',function(e){
   delete held[e.keyCode];
   recomputeInput();
 });
+var touchDirs={};
+function touchInputRefresh(){
+  var ids=Object.keys(touchDirs);
+  S.input=ids.length?touchDirs[ids[ids.length-1]]:[0,0];
+}
+function touchRelease(pid){
+  if(touchDirs[pid]){delete touchDirs[pid];touchInputRefresh();}
+}
 document.querySelectorAll('.dbtn').forEach(function(btn){
   var dx=+btn.dataset.dx, dy=+btn.dataset.dy;
-  function down(e){e.preventDefault();S.input=[dx,dy];btn._held=true;}
-  function up(){if(btn._held){btn._held=false;if(S.input[0]===dx&&S.input[1]===dy)S.input=[0,0];}}
+  function down(e){e.preventDefault();touchDirs[e.pointerId]=[dx,dy];touchInputRefresh();}
+  function up(e){touchRelease(e.pointerId);}
+  function leave(e){if(e.buttons===0)touchRelease(e.pointerId);} // 手指还按着时忽略漂移
   btn.addEventListener('pointerdown',down);
   btn.addEventListener('pointerup',up);
   btn.addEventListener('pointercancel',up);
-  btn.addEventListener('pointerleave',up);
+  btn.addEventListener('pointerleave',leave);
+  btn.addEventListener('contextmenu',function(e){e.preventDefault();});
 });
+window.addEventListener('pointerup',function(e){touchRelease(e.pointerId);});
+window.addEventListener('pointercancel',function(e){touchRelease(e.pointerId);});
 document.getElementById('bombBtn').addEventListener('pointerdown',function(e){e.preventDefault();tryPlaceBomb();});
 document.getElementById('wrap').addEventListener('contextmenu',function(e){e.preventDefault();});
 
