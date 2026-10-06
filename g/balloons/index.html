@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>射气球 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="射气球：谷谷乐园出品的限时小游戏，30 秒内点破气球得分，小心别点到炸弹！手机触控、电脑鼠标都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;border-radius:8px;background:linear-gradient(#BEE3F8,#E8F7FF)}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.92);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#B08D6E}
+.msg .big{font-size:44px;font-weight:900;color:#D97A12}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🎈 射气球</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="time">30</div><div class="label">剩余(秒)</div></div>
+<div class="score-box"><div class="num" id="best">0</div><div class="label">最高</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro"><b>30 秒</b>倒计时！点破气球 <b>🎈 +10 分</b>，千万别点到炸弹 <b>💣 −20 分</b>！</p>
+<button class="restart" id="startBtn">开始游戏</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="440" height="560"></canvas>
+<div class="msg show" id="msg"><p id="msgText">🎈 射气球</p><div class="sub" id="msgSub">30 秒内点破尽可能多的气球！</div><button id="again">开始游戏</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>气球从底部升起，用手指或鼠标点击点破，每只气球 +10 分。混入的炸弹 💣 千万别碰，点中 −20 分并红屏警告。30 秒倒计时结束结算得分。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var W=440, H=560, DURATION=30;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var scoreEl=document.getElementById('score'), timeEl=document.getElementById('time'), bestEl=document.getElementById('best');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub'), msgText=document.getElementById('msgText');
+var S=null, raf=null, lastT=0;
+var best=0;
+try{ best=parseInt(localStorage.getItem('gugujoy_balloons_best')||'0',10)||0; }catch(e){}
+bestEl.textContent=best;
+
+function reset(){
+  S={items:[],pops:[],score:0,left:DURATION,alive:false,playing:false,spawnAcc:0,redT:0,floats:[]};
+  for(var i=0;i<7;i++) S.floats.push({x:Math.random()*W,y:Math.random()*H,r:20+Math.random()*30,sp:8+Math.random()*10});
+  scoreEl.textContent='0'; timeEl.textContent=DURATION;
+  msgText.textContent='🎈 射气球';
+  msgSub.textContent='30 秒内点破尽可能多的气球！';
+  document.getElementById('again').textContent='开始游戏';
+  document.getElementById('startBtn').textContent='开始游戏';
+  msg.classList.add('show');
+}
+function start(){
+  reset();
+  S.alive=true; S.playing=true;
+  msg.classList.remove('show');
+  document.getElementById('startBtn').textContent='进行中…';
+  if(raf) cancelAnimationFrame(raf); lastT=performance.now();
+  raf=requestAnimationFrame(loop);
+}
+function spawnItem(){
+  var r=26+Math.random()*22;
+  var bomb=Math.random()<0.22;
+  S.items.push({x:r+Math.random()*(W-2*r),y:H+r,r:r,bomb:bomb,
+    spd:90+Math.random()*110,sway:Math.random()*6.28,swayAmp:10+Math.random()*25,
+    hue:(Math.random()*360)|0});
+}
+function loop(t){
+  if(!S.playing) return;
+  var dt=Math.min(50,t-lastT); lastT=t;
+  step(dt);
+  draw();
+  raf=requestAnimationFrame(loop);
+}
+function step(dt){
+  S.left-=dt/1000;
+  if(S.left<=0){ S.left=0; end(); return; }
+  timeEl.textContent=Math.ceil(S.left);
+  // spawn ~1.4/s
+  S.spawnAcc+=dt/1000*1.4;
+  while(S.spawnAcc>=1){ S.spawnAcc--; spawnItem(); }
+  for(var i=S.items.length-1;i>=0;i--){
+    var it=S.items[i];
+    it.y-=it.spd*dt/1000; it.sway+=dt/1000*2;
+    if(it.y<-it.r*2) S.items.splice(i,1);
+  }
+  for(var p=S.pops.length-1;p>=0;p--){ S.pops[p].t-=dt; if(S.pops[p].t<=0) S.pops.splice(p,1); }
+  if(S.redT>0) S.redT-=dt;
+  for(var f=0;f<S.floats.length;f++){var fl=S.floats[f];fl.y-=fl.sp*dt/1000;if(fl.y<-40){fl.y=H+40;fl.x=Math.random()*W;}}
+}
+function addScore(n){
+  S.score=Math.max(0,S.score+n); scoreEl.textContent=S.score;
+}
+function tap(x,y){
+  if(!S.playing) return;
+  for(var i=S.items.length-1;i>=0;i--){
+    var it=S.items[i];
+    var dx=x-it.x, dy=y-it.y;
+    if(dx*dx+dy*dy<(it.r+8)*(it.r+8)){
+      S.items.splice(i,1);
+      S.pops.push({x:it.x,y:it.y,t:280,bomb:it.bomb});
+      if(it.bomb){ addScore(-20); S.redT=600; }
+      else addScore(10);
+      return;
+    }
+  }
+}
+function end(){
+  S.playing=false; S.alive=false; if(raf) cancelAnimationFrame(raf);
+  if(S.score>best){best=S.score;bestEl.textContent=best;try{localStorage.setItem('gugujoy_balloons_best',String(best));}catch(e){}}
+  msgText.textContent='⏰ 时间到！';
+  msgSub.innerHTML='本局得分 <b style="font-size:26px;color:#D97A12">'+S.score+'</b> · 历史最高 '+best;
+  var btn=document.getElementById('again'); btn.textContent='再来一局';
+  document.getElementById('startBtn').textContent='再来一局';
+  msg.classList.add('show');
+}
+function draw(){
+  var g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#BEE3F8'); g.addColorStop(1,'#E8F7FF');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // background clouds
+  ctx.globalAlpha=0.5; ctx.fillStyle='#fff';
+  for(var f=0;f<S.floats.length;f++){var fl=S.floats[f];
+    ctx.beginPath();ctx.arc(fl.x,fl.y,fl.r,0,7);ctx.fill();}
+  ctx.globalAlpha=1;
+  // items
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(var i=0;i<S.items.length;i++){var it=S.items[i];
+    var x=it.x+Math.sin(it.sway)*it.swayAmp;
+    if(it.bomb){ ctx.font=(it.r*1.9)+'px serif'; ctx.fillText('💣',x,it.y); }
+    else{
+      // draw balloon body with hue
+      ctx.save(); ctx.translate(x,it.y);
+      ctx.fillStyle='hsl('+it.hue+',80%,62%)';
+      ctx.beginPath(); ctx.ellipse(0,0,it.r*0.85,it.r,0,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.45)';
+      ctx.beginPath(); ctx.ellipse(-it.r*0.3,-it.r*0.35,it.r*0.22,it.r*0.32,-0.4,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(92,61,46,.5)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(0,it.r); ctx.quadraticCurveTo(6,it.r+14,-4,it.r+24); ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // pops
+  for(var p=0;p<S.pops.length;p++){var pp=S.pops[p];
+    ctx.font=(30*(pp.t/280)+14)+'px serif';
+    ctx.fillText(pp.bomb?'💥':'✨',pp.x,pp.y);}
+  // red flash on bomb
+  if(S.redT>0){ ctx.fillStyle='rgba(220,40,30,'+(0.35*S.redT/600)+')'; ctx.fillRect(0,0,W,H); }
+  // countdown bar
+  ctx.fillStyle='rgba(217,122,18,.25)'; ctx.fillRect(0,0,W,6);
+  ctx.fillStyle='#F0902A'; ctx.fillRect(0,0,W*(S.left/DURATION),6);
+}
+function canvasPos(e){
+  var r=cv.getBoundingClientRect();
+  var cx=(e.clientX!==undefined?e.clientX:e.changedTouches[0].clientX);
+  var cy=(e.clientY!==undefined?e.clientY:e.changedTouches[0].clientY);
+  return [(cx-r.left)/r.width*W,(cy-r.top)/r.height*H];
+}
+document.getElementById('startBtn').onclick=start;
+document.getElementById('again').onclick=start;
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchstart',function(e){ var p=canvasPos(e); tap(p[0],p[1]); },{passive:true});
+wrap.addEventListener('touchmove',function(e){ e.preventDefault(); },{passive:false});
+cv.addEventListener('mousedown',function(e){ var p=canvasPos(e); tap(p[0],p[1]); });
+reset();
+
+window.__test={
+  start:start, reset:reset,
+  step:function(dt){ if(S&&S.playing) step(dt); },
+  tap:function(x,y){ tap(x,y); },
+  spawnAt:function(x,y,bomb){ S.items.push({x:x,y:y,r:30,bomb:!!bomb,spd:0,sway:0,swayAmp:0,hue:0}); },
+  state:function(){ return {score:S.score,left:S.left,playing:S.playing,items:S.items.length,redT:S.redT}; }
+};
+})();
+</script>
+</body>
+</html>

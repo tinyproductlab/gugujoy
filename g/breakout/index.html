@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>打砖块 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="打砖块：谷谷乐园出品的经典街机小游戏，移动挡板反弹小球，击碎所有砖块过关！手机触控、电脑鼠标键盘都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 14px;text-align:center;min-width:70px}
+.score-box .num{font-size:20px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;border-radius:8px;background:#FFF8E7}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.9);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🧱 打砖块</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="level">1</div><div class="label">关卡</div></div>
+<div class="score-box"><div class="num" id="lives">3</div><div class="label">生命 ❤</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">移动挡板接住小球，<b>击碎所有砖块</b>过关！</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="440" height="560"></canvas>
+<div class="msg" id="msg"><p id="msgText"></p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>手机手指在屏幕上左右滑动移动挡板，电脑用鼠标移动或 ← → 方向键。点击屏幕发射小球。砖块颜色越深分越高，每过一关球速提升。掉球扣 1 条命，3 条命用完游戏结束。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var W=440, H=560;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var scoreEl=document.getElementById('score'), levelEl=document.getElementById('level'), livesEl=document.getElementById('lives');
+var msg=document.getElementById('msg'), msgText=document.getElementById('msgText'), msgSub=document.getElementById('msgSub');
+var S=null, raf=null, lastT=0;
+var best=0; try{best=parseInt(localStorage.getItem('gugujoy_breakout_best')||'0',10)||0;}catch(e){}
+var COLORS=['#FF9A3D','#F5852A','#E4572E','#C24E04','#7B5CD6'];
+
+function buildLevel(lv){
+  var rows=Math.min(4+lv,8), cols=9, bricks=[];
+  var bw=(W-20)/cols;
+  for(var r=0;r<rows;r++)for(var c=0;c<cols;c++){
+    // skip some bricks on higher levels for patterns
+    if(lv>=2 && (r+c)%7===0) continue;
+    bricks.push({x:10+c*bw, y:50+r*26, w:bw-4, h:22, hp:1+((r+lv)%3===0?1:0), color:COLORS[r%COLORS.length]});
+  }
+  return bricks;
+}
+function reset(){
+  S={score:0, level:1, lives:3, over:false,
+     paddle:{w:86,h:12,x:W/2-43,y:H-40},
+     ball:{x:W/2,y:H-60,r:7,vx:0,vy:0,stuck:true,speed:340},
+     bricks:buildLevel(1)};
+  scoreEl.textContent='0'; levelEl.textContent='1'; livesEl.textContent='3';
+  msg.classList.remove('show');
+  loop();
+}
+function nextLevel(){
+  S.level++; levelEl.textContent=S.level;
+  S.bricks=buildLevel(S.level);
+  S.ball.stuck=true; S.ball.x=S.paddle.x+S.paddle.w/2; S.ball.y=S.paddle.y-10;
+  S.ball.speed=Math.min(340+S.level*40, 640);
+  showMsg('🎉 第 '+S.level+' 关！','点击屏幕发射小球',true);
+}
+function launch(){
+  if(!S.ball.stuck||S.over) return;
+  var a=-Math.PI/2+(Math.random()*0.6-0.3);
+  S.ball.vx=Math.cos(a)*S.ball.speed; S.ball.vy=Math.sin(a)*S.ball.speed;
+  S.ball.stuck=false; msg.classList.remove('show');
+}
+function loseLife(){
+  S.lives--; livesEl.textContent=S.lives;
+  if(S.lives<=0){
+    S.over=true; cancelAnimationFrame(raf);
+    if(S.score>best){best=S.score;try{localStorage.setItem('gugujoy_breakout_best',String(best));}catch(e){}}
+    showMsg('😵 游戏结束','得分 '+S.score+' · 历史最高 '+best,false);
+  } else {
+    S.ball.stuck=true; S.ball.x=S.paddle.x+S.paddle.w/2; S.ball.y=S.paddle.y-10;
+    showMsg('💔 掉球啦','还剩 '+S.lives+' 条命，点击屏幕继续',true);
+  }
+}
+function showMsg(t,sub,canResume){
+  msgText.textContent=t; msgSub.textContent=sub;
+  document.getElementById('again').style.display=canResume?'none':'';
+  msg.classList.add('show');
+}
+function loop(t){
+  raf=requestAnimationFrame(loop);
+  var dt=Math.min((t-lastT)/1000,0.033); lastT=t;
+  if(S.over||S.ball.stuck&&msg.classList.contains('show')){draw();return;}
+  step(dt); draw();
+}
+function step(dt){
+  var b=S.ball, p=S.paddle;
+  if(b.stuck){ b.x=p.x+p.w/2; b.y=p.y-10; return; }
+  b.x+=b.vx*dt; b.y+=b.vy*dt;
+  // walls
+  if(b.x<b.r){b.x=b.r;b.vx=Math.abs(b.vx);}
+  if(b.x>W-b.r){b.x=W-b.r;b.vx=-Math.abs(b.vx);}
+  if(b.y<b.r){b.y=b.r;b.vy=Math.abs(b.vy);}
+  if(b.y>H+b.r*2){ loseLife(); return; }
+  // paddle
+  if(b.vy>0 && b.y+b.r>=p.y && b.y-b.r<=p.y+p.h && b.x>=p.x-b.r && b.x<=p.x+p.w+b.r){
+    var rel=(b.x-(p.x+p.w/2))/(p.w/2); // -1..1
+    var ang=-Math.PI/2+rel*1.05; // max 60°
+    var sp=Math.hypot(b.vx,b.vy);
+    b.vx=Math.cos(ang)*sp; b.vy=Math.sin(ang)*sp;
+    b.y=p.y-b.r-1;
+  }
+  // bricks
+  for(var i=0;i<S.bricks.length;i++){
+    var br=S.bricks[i];
+    if(b.x+b.r<br.x||b.x-b.r>br.x+br.w||b.y+b.r<br.y||b.y-b.r>br.y+br.h) continue;
+    // determine bounce axis by penetration
+    var ox=Math.min(b.x+b.r-br.x, br.x+br.w-(b.x-b.r));
+    var oy=Math.min(b.y+b.r-br.y, br.y+br.h-(b.y-b.r));
+    if(ox<oy) b.vx=-b.vx; else b.vy=-b.vy;
+    br.hp--;
+    if(br.hp<=0){ S.bricks.splice(i,1); i--; S.score+=10; }
+    else S.score+=5;
+    scoreEl.textContent=S.score;
+    if(S.score>best){best=S.score;try{localStorage.setItem('gugujoy_breakout_best',String(best));}catch(e){}}
+    break;
+  }
+  if(S.bricks.length===0){ nextLevel(); }
+}
+function draw(){
+  ctx.fillStyle='#FFF8E7'; ctx.fillRect(0,0,W,H);
+  var p=S.paddle;
+  // bricks
+  S.bricks.forEach(function(br){
+    ctx.fillStyle=br.color; rr(br.x,br.y,br.w,br.h,5); ctx.fill();
+    if(br.hp>1){ctx.fillStyle='rgba(255,255,255,.55)';rr(br.x+4,br.y+4,br.w-8,5,2);ctx.fill();}
+  });
+  // paddle
+  ctx.fillStyle='#D97A12'; rr(p.x,p.y,p.w,p.h,6); ctx.fill();
+  ctx.fillStyle='#F0902A'; rr(p.x+6,p.y+3,p.w-12,3,1.5); ctx.fill();
+  // ball
+  var b=S.ball;
+  ctx.fillStyle='#E4572E'; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.6)'; ctx.beginPath(); ctx.arc(b.x-2,b.y-2,2.2,0,7); ctx.fill();
+  // best
+  ctx.fillStyle='#B08D6E'; ctx.font='12px sans-serif'; ctx.textAlign='right';
+  ctx.fillText('最高 '+best, W-10, 20);
+}
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+// input: paddle follows pointer x
+function canvasX(clientX){ var r=cv.getBoundingClientRect(); return (clientX-r.left)/r.width*W; }
+var wrap=document.getElementById('wrap');
+function movePaddle(cx){
+  var p=S.paddle;
+  p.x=Math.max(0,Math.min(W-p.w, cx-p.w/2));
+}
+wrap.addEventListener('touchstart',function(e){
+  var t=e.changedTouches[0]; movePaddle(canvasX(t.clientX)); launch();
+},{passive:true});
+wrap.addEventListener('touchmove',function(e){
+  e.preventDefault(); var t=e.changedTouches[0]; movePaddle(canvasX(t.clientX));
+},{passive:false});
+wrap.addEventListener('mousedown',function(e){ movePaddle(canvasX(e.clientX)); launch(); });
+wrap.addEventListener('mousemove',function(e){ if(e.buttons) movePaddle(canvasX(e.clientX)); });
+document.addEventListener('keydown',function(e){
+  var p=S.paddle;
+  if(e.keyCode===37){p.x=Math.max(0,p.x-24);e.preventDefault();}
+  if(e.keyCode===39){p.x=Math.min(W-p.w,p.x+24);e.preventDefault();}
+  if(e.keyCode===32||e.keyCode===38){launch();e.preventDefault();}
+});
+document.getElementById('restart').onclick=function(){cancelAnimationFrame(raf);reset();};
+document.getElementById('again').onclick=function(){cancelAnimationFrame(raf);reset();};
+window.__breakout={getS:function(){return S;},step:step,launch:launch,reset:reset};
+reset();
+})();
+</script>
+</body>
+</html>

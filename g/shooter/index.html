@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>太空射击 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="太空射击：谷谷乐园出品的街机小游戏，驾驶飞船击落敌机，活得越久难度越高！触控拖动、鼠标或方向键都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.lives{display:flex;gap:4px;justify-content:center;margin-top:2px;font-size:15px}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;border-radius:8px;background:#2A1B2E}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.9);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🚀 太空射击</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="best">0</div><div class="label">最高</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">左右移动飞船 <b>🚀</b>，自动开火击落敌机！别让敌机撞到你或漏到底线，你有 <b>3 条命</b>。</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="440" height="600"></canvas>
+<div class="msg" id="msg"><p id="msgText">💥 游戏结束</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="lives" id="lives" style="margin-top:10px"></div>
+<div class="howto"><b>🐾 玩法说明：</b>手机按住飞船左右拖动，电脑用鼠标移动或 ← → 方向键。飞船自动发射子弹，击落一架敌机得 10 分。敌机漏到底部或撞到飞船都会扣 1 条命，共 3 条命。时间越久，敌机越快、越密集！</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var W=440, H=600;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var scoreEl=document.getElementById('score'), bestEl=document.getElementById('best');
+var livesEl=document.getElementById('lives');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub');
+var S=null, raf=null, lastT=0;
+var best=0;
+try{ best=parseInt(localStorage.getItem('gugujoy_shooter_best')||'0',10)||0; }catch(e){}
+bestEl.textContent=best;
+
+var ENEMIES=['👾','👹','🛸','🤖']; // enemy kinds
+
+function reset(){
+  S={player:{x:W/2,y:H-70,w:44,h:44},bullets:[],enemies:[],booms:[],stars:[],
+     score:0,lives:3,alive:true,time:0,fireCd:0,spawnCd:600,left:false,right:false};
+  for(var i=0;i<60;i++) S.stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+0.4,sp:Math.random()*30+10});
+  scoreEl.textContent='0'; msg.classList.remove('show');
+  renderLives();
+  if(raf) cancelAnimationFrame(raf); lastT=performance.now();
+  raf=requestAnimationFrame(loop);
+}
+function renderLives(){
+  livesEl.textContent='';
+  for(var i=0;i<3;i++) livesEl.textContent+= (i<S.lives?'❤️':'🤍');
+}
+function spawnEnemy(){
+  var diff=Math.min(1,S.time/90); // difficulty 0..1 over 90s
+  var kind=Math.random();
+  var wob=kind>0.55; // some enemies wobble
+  var spd=(90+Math.random()*70)*(1+diff*1.4);
+  S.enemies.push({x:20+Math.random()*(W-40),y:-40,w:36,h:36,spd:spd,wob:wob,
+    phase:Math.random()*6.28,wobAmp:wob?40+Math.random()*40:0,
+    glyph:ENEMIES[(Math.random()*ENEMIES.length)|0]});
+  S.spawnCd=560-Math.min(380,S.time*5+diff*120);
+}
+function fire(){
+  S.bullets.push({x:S.player.x,y:S.player.y-26,w:8,h:18});
+  S.fireCd=170;
+}
+function loop(t){
+  if(!S.alive) return;
+  var dt=Math.min(50,t-lastT); lastT=t;
+  step(dt);
+  draw();
+  raf=requestAnimationFrame(loop);
+}
+function step(dt){
+  S.time+=dt/1000;
+  // player movement
+  var spd=320*dt/1000;
+  if(S.left) S.player.x-=spd;
+  if(S.right) S.player.x+=spd;
+  S.player.x=Math.max(30,Math.min(W-30,S.player.x));
+  // auto fire
+  S.fireCd-=dt;
+  if(S.fireCd<=0) fire();
+  // bullets
+  for(var i=S.bullets.length-1;i>=0;i--){
+    S.bullets[i].y-=520*dt/1000;
+    if(S.bullets[i].y<-20) S.bullets.splice(i,1);
+  }
+  // spawn
+  S.spawnCd-=dt;
+  if(S.spawnCd<=0) spawnEnemy();
+  // enemies
+  for(var j=S.enemies.length-1;j>=0;j--){
+    var e=S.enemies[j];
+    e.y+=e.spd*dt/1000;
+    e.phase+=dt/1000*3;
+    var ex=e.x+(e.wob?Math.sin(e.phase)*e.wobAmp*dt/1000*10:0);
+    e.x=Math.max(20,Math.min(W-20,ex));
+    // leaked to bottom
+    if(e.y>H+20){ S.enemies.splice(j,1); loseLife('敌机漏过去啦！'); continue; }
+    // hit player?
+    if(Math.abs(e.x-S.player.x)<36&&Math.abs(e.y-S.player.y)<36){
+      S.enemies.splice(j,1); explode(e.x,e.y); loseLife('飞船被撞啦！'); continue;
+    }
+  }
+  // bullets vs enemies
+  for(var b=S.bullets.length-1;b>=0;b--){
+    var bl=S.bullets[b], hit=false;
+    for(var k=S.enemies.length-1;k>=0;k--){
+      var en=S.enemies[k];
+      if(Math.abs(bl.x-en.x)<26&&Math.abs(bl.y-en.y)<26){
+        explode(en.x,en.y); S.enemies.splice(k,1); hit=true;
+        addScore(10); break;
+      }
+    }
+    if(hit) S.bullets.splice(b,1);
+  }
+  // booms
+  for(var m=S.booms.length-1;m>=0;m--){ S.booms[m].t-=dt; if(S.booms[m].t<=0) S.booms.splice(m,1); }
+  // stars
+  for(var s=0;s<S.stars.length;s++){ var st=S.stars[s]; st.y+=st.sp*dt/1000; if(st.y>H){st.y=0;st.x=Math.random()*W;} }
+}
+function explode(x,y){ S.booms.push({x:x,y:y,t:300}); }
+function addScore(n){
+  S.score+=n; scoreEl.textContent=S.score;
+  if(S.score>best){best=S.score;bestEl.textContent=best;try{localStorage.setItem('gugujoy_shooter_best',String(best));}catch(e){}}
+}
+function loseLife(why){
+  S.lives--; renderLives();
+  if(S.lives<=0){ die(why); }
+}
+function die(why){
+  S.alive=false; if(raf) cancelAnimationFrame(raf);
+  msgSub.textContent=why+' 本局得分 '+S.score+' · 历史最高 '+best;
+  document.getElementById('msgText').textContent='💥 游戏结束';
+  msg.classList.add('show');
+}
+function draw(){
+  ctx.fillStyle='#2A1B2E'; ctx.fillRect(0,0,W,H);
+  // stars
+  ctx.fillStyle='#fff';
+  for(var i=0;i<S.stars.length;i++){var st=S.stars[i];ctx.globalAlpha=0.5;ctx.fillRect(st.x,st.y,st.r,st.r);}
+  ctx.globalAlpha=1;
+  // danger line
+  ctx.strokeStyle='rgba(240,144,42,.35)'; ctx.setLineDash([8,8]); ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,H-24); ctx.lineTo(W,H-24); ctx.stroke(); ctx.setLineDash([]);
+  // enemies
+  ctx.font='30px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(var j=0;j<S.enemies.length;j++){var e=S.enemies[j];ctx.fillText(e.glyph,e.x,e.y);}
+  // bullets
+  ctx.fillStyle='#FFD93D';
+  for(var b=0;b<S.bullets.length;b++){var bl=S.bullets[b];
+    ctx.fillRect(bl.x-4,bl.y-9,8,18);
+    ctx.fillStyle='rgba(255,217,61,.35)';ctx.fillRect(bl.x-7,bl.y-12,14,24);ctx.fillStyle='#FFD93D';}
+  // player
+  ctx.font='38px serif'; ctx.fillText('🚀',S.player.x,S.player.y);
+  // booms
+  for(var m=0;m<S.booms.length;m++){var bo=S.booms[m];
+    ctx.font=(44*(bo.t/300)+20)+'px serif'; ctx.fillText('💥',bo.x,bo.y);}
+}
+function canvasX(clientX){
+  var r=cv.getBoundingClientRect(); return (clientX-r.left)/r.width*W;
+}
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+document.addEventListener('keydown',function(e){
+  if(e.keyCode===37){S.left=true;e.preventDefault();}
+  else if(e.keyCode===39){S.right=true;e.preventDefault();}
+});
+document.addEventListener('keyup',function(e){
+  if(e.keyCode===37) S.left=false; else if(e.keyCode===39) S.right=false;
+});
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchstart',function(e){ if(S&&S.alive) S.player.x=canvasX(e.changedTouches[0].clientX); },{passive:true});
+wrap.addEventListener('touchmove',function(e){ e.preventDefault(); if(S&&S.alive) S.player.x=canvasX(e.changedTouches[0].clientX); },{passive:false});
+cv.addEventListener('mousemove',function(e){ if(S&&S.alive) S.player.x=canvasX(e.clientX); });
+reset();
+
+window.__test={
+  reset:function(){reset();},
+  step:function(dt){ if(S&&S.alive) step(dt); },
+  spawnEnemy:function(x,y,spd){ S.enemies.push({x:x||W/2,y:y||-40,w:36,h:36,spd:spd||100,wob:false,phase:0,wobAmp:0,glyph:'👾'}); },
+  clearBullets:function(){ S.bullets=[]; S.fireCd=99999; },
+  state:function(){ return {score:S.score,lives:S.lives,alive:S.alive,enemies:S.enemies.length,bullets:S.bullets.length,px:S.player.x,time:S.time}; },
+  setPlayerX:function(x){ S.player.x=x; },
+  loseLife:function(){ loseLife('test'); },
+  setTime:function(t){ S.time=t; },
+  spawnReal:function(){ spawnEnemy(); },
+  lastEnemySpeed:function(){ var e=S.enemies[S.enemies.length-1]; return e?e.spd:null; }
+};
+})();
+</script>
+</body>
+</html>

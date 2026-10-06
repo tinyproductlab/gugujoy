@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>记忆翻牌 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="记忆翻牌：谷谷乐园出品的经典记忆游戏，16 张牌 8 对图案，翻两张计一步，用最少的步数全部配对！手机电脑都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0}
+h1.title{font-size:30px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.card{aspect-ratio:1;background:#fff;border:2px solid #F3D9B8;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:38px;cursor:pointer;touch-action:manipulation;transition:transform .12s,background .12s}
+.card:active{transform:scale(.94)}
+.card.open{background:#FFE3B8;border-color:#F0902A}
+.card.done{background:#FFF3DD;border-color:#F0902A;cursor:default}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.92);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.6}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🃏 记忆翻牌</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">步数</div></div>
+<div class="score-box"><div class="num" id="best">0</div><div class="label">最少步数</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">16 张牌、8 对图案，考验记忆力的时候到了！</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<div class="board" id="grid"></div>
+<div class="msg" id="msg"><p id="msgText">🎉 全部配对成功！</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>点击翻开两张牌，图案相同则配对成功保持翻开，不同则 0.8 秒后扣回去。翻两张计 1 步，全部配对即过关，步数越少越厉害！</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var EMOJI=['🐱','🐶','🐰','🦊','🐼','🐨','🐯','🦁'];
+var grid=document.getElementById('grid');
+var stepsEl=document.getElementById('score'), bestEl=document.getElementById('best');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub');
+var S=null, cardEls=[], best=0;
+try{ best=parseInt(localStorage.getItem('gugujoy_memory_best')||'0',10)||0; }catch(e){}
+bestEl.textContent=best;
+
+function shuffledDeck(){
+  var arr=EMOJI.concat(EMOJI), i, j, t;
+  for(i=arr.length-1;i>0;i--){ j=(Math.random()*(i+1))|0; t=arr[i]; arr[i]=arr[j]; arr[j]=t; }
+  return arr.map(function(e){ return {e:e, open:false, done:false}; });
+}
+function buildCards(){
+  grid.innerHTML='';
+  cardEls=[];
+  for(var i=0;i<16;i++){
+    var d=document.createElement('div');
+    d.className='card';
+    d.textContent='❓';
+    (function(idx){ d.addEventListener('click',function(){ flip(idx); }); })(i);
+    grid.appendChild(d);
+    cardEls.push(d);
+  }
+}
+function reset(){
+  S={deck:shuffledDeck(), open:[], matched:0, steps:0, lock:false, alive:true};
+  stepsEl.textContent='0';
+  msg.classList.remove('show');
+  render();
+}
+function flip(i){
+  if(!S.alive||S.lock) return false;
+  var c=S.deck[i];
+  if(c.done||c.open) return false; // 防连点：已翻开/已配对的牌忽略
+  c.open=true;
+  S.open.push(i);
+  if(S.open.length===2){
+    S.steps++;
+    stepsEl.textContent=S.steps;
+    var a=S.deck[S.open[0]], b=S.deck[S.open[1]];
+    if(a.e===b.e){
+      a.done=b.done=true;
+      S.open=[];
+      S.matched+=2;
+      if(S.matched===16) win();
+    }else{
+      S.lock=true; // 扣回前锁定，防连点
+      setTimeout(function(){
+        a.open=false; b.open=false;
+        S.open=[]; S.lock=false;
+        render();
+      },800);
+    }
+  }
+  render();
+  return true;
+}
+function render(){
+  for(var i=0;i<16;i++){
+    var c=S.deck[i], el=cardEls[i];
+    el.classList.toggle('open',c.open||c.done);
+    el.classList.toggle('done',c.done);
+    el.textContent=(c.open||c.done)?c.e:'❓';
+  }
+}
+function win(){
+  S.alive=false;
+  var nb=false;
+  if(best===0||S.steps<best){ best=S.steps; nb=true; try{ localStorage.setItem('gugujoy_memory_best',String(best)); }catch(e){} }
+  bestEl.textContent=best;
+  msgSub.textContent='用了 '+S.steps+' 步'+(nb?' · 🎉 新纪录！':' · 最少步数 '+best);
+  msg.classList.add('show');
+}
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchstart',function(){},{passive:true});
+wrap.addEventListener('touchmove',function(e){ e.preventDefault(); },{passive:false});
+buildCards();
+reset();
+window.__test={reset:reset,state:function(){return S;},flip:flip,
+  setDeck:function(arr){ // 测试用：指定 16 张牌的顺序
+    S={deck:arr.map(function(e){ return {e:e, open:false, done:false}; }),open:[],matched:0,steps:0,lock:false,alive:true};
+    stepsEl.textContent='0'; msg.classList.remove('show'); render();
+  }};
+})();
+</script>
+</body>
+</html>

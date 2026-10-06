@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>贪吃蛇 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="贪吃蛇：谷谷乐园出品的经典街机小游戏，吃豆豆长身体，别撞墙别咬到自己！手机滑动、电脑方向键都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;border-radius:8px;background:#FFF8E7}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.88);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🐍 贪吃蛇</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="best">0</div><div class="label">最高</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">吃掉 <b>🍎</b> 长身体，越吃越快！别撞墙，也别咬到自己。</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="440" height="440"></canvas>
+<div class="msg" id="msg"><p id="msgText">😵 撞到啦！</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>手机在棋盘上滑动改变方向，电脑用方向键 / WASD。每吃一个苹果得 10 分，身体变长、速度变快。撞墙或咬到自己游戏结束。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var N=20, CELL=22; // 440px canvas
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var scoreEl=document.getElementById('score'), bestEl=document.getElementById('best');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub');
+var S=null, timer=null, best=0;
+try{ best=parseInt(localStorage.getItem('gugujoy_snake_best')||'0',10)||0; }catch(e){}
+bestEl.textContent=best;
+
+function reset(){
+  S={snake:[[10,10],[9,10],[8,10]],dir:[1,0],queue:[],food:null,score:0,alive:true,speed:150,eaten:0};
+  placeFood(); scoreEl.textContent='0'; msg.classList.remove('show');
+  restartLoop();
+}
+function placeFood(){
+  while(true){
+    var x=(Math.random()*N)|0, y=(Math.random()*N)|0, clash=false;
+    for(var i=0;i<S.snake.length;i++) if(S.snake[i][0]===x&&S.snake[i][1]===y){clash=true;break;}
+    if(!clash){ S.food=[x,y]; return; }
+  }
+}
+function restartLoop(){
+  if(timer) clearInterval(timer);
+  timer=setInterval(tick, S.speed);
+}
+function setDir(x,y){
+  var last=S.queue.length?S.queue[S.queue.length-1]:S.dir;
+  if((x===-last[0]&&y===-last[1])||(x===last[0]&&y===last[1])) return; // no reverse / same
+  if(S.queue.length<3) S.queue.push([x,y]);
+}
+function tick(){
+  if(!S.alive) return;
+  if(S.queue.length) S.dir=S.queue.shift();
+  var h=[S.snake[0][0]+S.dir[0], S.snake[0][1]+S.dir[1]];
+  // wall or self collision
+  if(h[0]<0||h[0]>=N||h[1]<0||h[1]>=N||hitsSelf(h)){ return die(); }
+  S.snake.unshift(h);
+  if(h[0]===S.food[0]&&h[1]===S.food[1]){
+    S.score+=10; S.eaten++;
+    scoreEl.textContent=S.score;
+    if(S.score>best){best=S.score;bestEl.textContent=best;try{localStorage.setItem('gugujoy_snake_best',String(best));}catch(e){}}
+    if(S.eaten%5===0&&S.speed>70){S.speed-=12;restartLoop();}
+    placeFood();
+  } else S.snake.pop();
+  draw();
+}
+function hitsSelf(h){
+  for(var i=0;i<S.snake.length-1;i++) if(S.snake[i][0]===h[0]&&S.snake[i][1]===h[1]) return true;
+  return false;
+}
+function die(){
+  S.alive=false; clearInterval(timer);
+  msgSub.textContent='本局得分 '+S.score+' · 历史最高 '+best;
+  msg.classList.add('show'); draw();
+}
+function draw(){
+  ctx.fillStyle='#FFF8E7'; ctx.fillRect(0,0,cv.width,cv.height);
+  // subtle grid
+  ctx.strokeStyle='rgba(217,122,18,.06)'; ctx.lineWidth=1;
+  for(var g=1;g<N;g++){ctx.beginPath();ctx.moveTo(g*CELL,0);ctx.lineTo(g*CELL,cv.height);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,g*CELL);ctx.lineTo(cv.width,g*CELL);ctx.stroke();}
+  // food
+  ctx.font=(CELL-4)+'px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🍎', S.food[0]*CELL+CELL/2, S.food[1]*CELL+CELL/2+1);
+  // snake
+  for(var i=S.snake.length-1;i>=0;i--){
+    var s=S.snake[i], x=s[0]*CELL, y=s[1]*CELL;
+    if(i===0){ ctx.fillStyle='#D97A12'; }
+    else{ var t=i/S.snake.length; ctx.fillStyle='rgb('+Math.round(240-60*t)+','+(150-30*t)+','+(42+20*t)+')'; }
+    roundRect(x+1.5,y+1.5,CELL-3,CELL-3,6); ctx.fill();
+    if(i===0){ // eyes
+      ctx.fillStyle='#fff';
+      var ex=x+CELL/2, ey=y+CELL/2, dx=S.dir[0], dy=S.dir[1];
+      ctx.beginPath();ctx.arc(ex+dy*4-3+dx*3, ey+dx*4-3+dy*3, 3.2,0,7);ctx.fill();
+      ctx.beginPath();ctx.arc(ex+dy*4+3+dx*3, ey+dx*4+3+dy*3, 3.2,0,7);ctx.fill();
+      ctx.fillStyle='#5C3D2E';
+      ctx.beginPath();ctx.arc(ex+dy*4-3+dx*4.5, ey+dx*4-3+dy*4.5, 1.6,0,7);ctx.fill();
+      ctx.beginPath();ctx.arc(ex+dy*4+3+dx*4.5, ey+dx*4+3+dy*4.5, 1.6,0,7);ctx.fill();
+    }
+  }
+}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+var K={37:[-1,0],38:[0,-1],39:[1,0],40:[0,1],65:[-1,0],87:[0,-1],68:[1,0],83:[0,1]};
+document.addEventListener('keydown',function(e){
+  var d=K[e.keyCode]; if(!d) return; e.preventDefault();
+  if(!S.alive){reset();return;} setDir(d[0],d[1]);
+});
+var wrap=document.getElementById('wrap'), sx=0, sy=0;
+wrap.addEventListener('touchstart',function(e){var t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;},{passive:true});
+wrap.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+wrap.addEventListener('touchend',function(e){
+  var t=e.changedTouches[0], dx=t.clientX-sx, dy=t.clientY-sy;
+  if(Math.abs(dx)<24&&Math.abs(dy)<24) return;
+  if(!S.alive){reset();return;}
+  if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1);
+  sx=t.clientX; sy=t.clientY;
+},{passive:true});
+reset();
+})();
+</script>
+</body>
+</html>

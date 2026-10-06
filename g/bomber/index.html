@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>炸弹小子 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="炸弹小子：谷谷乐园出品的街机小游戏，放炸弹炸开迷宫、消灭敌人、捡道具，3 大关卡等你挑战！手机电脑都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;border-radius:8px;background:#FFF8E7}
+.pad{display:flex;justify-content:space-between;align-items:center;margin-top:12px;touch-action:none}
+.dpad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:6px}
+.dbtn{border:2px solid #F3D9B8;background:#fff;border-radius:14px;font-size:22px;color:#D97A12;cursor:pointer;touch-action:none}
+.dbtn:active{background:#FFE3B8}
+.dbtn.up{grid-column:2;grid-row:1}
+.dbtn.left{grid-column:1;grid-row:2}
+.dbtn.down{grid-column:2;grid-row:3}
+.dbtn.right{grid-column:3;grid-row:2}
+.bombbtn{width:92px;height:92px;border-radius:50%;font-size:40px;border:0;cursor:pointer;
+background:linear-gradient(135deg,#F0902A,#FFB03A);box-shadow:0 8px 20px rgba(240,144,42,.4);touch-action:none}
+.bombbtn:active{transform:scale(.93)}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.9);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.7}
+.msg .row{display:flex;gap:10px}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.msg button.ghost{background:#fff;color:#5C3D2E;border:2px solid #F3D9B8}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+@media(max-width:520px){h1.title{font-size:31px}.score-box{min-width:70px;padding:8px 12px}.intro{font-size:13px}}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🧨 炸弹小子</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="level">1</div><div class="label">关卡</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">放炸弹炸开迷宫，<b>消灭所有敌人</b>过关！小心别被自己的火焰烧到。</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="468" height="396"></canvas>
+<div class="pad" id="pad">
+<div class="dpad">
+<button class="dbtn up" data-dx="0" data-dy="-1">▲</button>
+<button class="dbtn left" data-dx="-1" data-dy="0">◀</button>
+<button class="dbtn down" data-dx="0" data-dy="1">▼</button>
+<button class="dbtn right" data-dx="1" data-dy="0">▶</button>
+</div>
+<button class="bombbtn" id="bombBtn">💣</button>
+</div>
+<div class="msg" id="msg"><p id="msgText"></p><div class="sub" id="msgSub"></div>
+<div class="row"><button class="ghost" id="againBtn">再来一局</button><button id="nextBtn" style="display:none">下一关 →</button></div></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>电脑用方向键 / WASD 移动，空格放炸弹；手机点下方方向键移动，点 💣 放炸弹。炸弹 3 秒后爆炸，十字火焰能炸碎砖块、消灭敌人，也会伤到自己——放完赶紧跑！炸砖块可能掉出道具：🔥 火力更大、💣 炸弹更多、👟 跑得更快。消灭一关所有敌人即可过关，共 3 关。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var COLS=13, ROWS=11, CELL=36;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var scoreEl=document.getElementById('score'), levelEl=document.getElementById('level');
+var msg=document.getElementById('msg'), msgText=document.getElementById('msgText'), msgSub=document.getElementById('msgSub');
+var nextBtn=document.getElementById('nextBtn'), againBtn=document.getElementById('againBtn');
+var S=null, raf=null, lastT=0;
+var best=0; try{best=parseInt(localStorage.getItem('gugujoy_bomber_best')||'0',10)||0;}catch(e){}
+var DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
+var LEVEL_CFG={1:{n:3,sp:2.0},2:{n:4,sp:2.6},3:{n:5,sp:3.2}};
+
+function buildLevel(lv, rand){
+  rand=rand||Math.random;
+  var grid=[], x, y;
+  for(y=0;y<ROWS;y++){ grid.push([]); for(x=0;x<COLS;x++){
+    if(x===0||y===0||x===COLS-1||y===ROWS-1) grid[y].push(1);
+    else if(x%2===0&&y%2===0) grid[y].push(1);
+    else grid[y].push(rand()<0.72?2:0);
+  }}
+  grid[1][1]=0; grid[1][2]=0; grid[2][1]=0; // 出生点安全
+  var cfg=LEVEL_CFG[lv]||LEVEL_CFG[1];
+  var spots=[];
+  for(y=1;y<ROWS-1;y++)for(x=1;x<COLS-1;x++){
+    if(grid[y][x]===0&&(Math.abs(x-1)+Math.abs(y-1))>=6) spots.push([x,y]);
+  }
+  var enemies=[];
+  for(var i=0;i<cfg.n&&spots.length;i++){
+    var s=spots.splice((rand()*spots.length)|0,1)[0];
+    var d=DIRS[(rand()*4)|0];
+    enemies.push({x:s[0]+0.5,y:s[1]+0.5,dir:[d[0],d[1]],speed:cfg.sp,alive:true,retarget:0.5});
+  }
+  return {grid:grid,enemies:enemies};
+}
+
+function resetGame(){
+  S={score:0,level:1,phase:'play',t:0,
+     player:{x:1.5,y:1.5,speed:4.2,range:2,maxBombs:1,alive:true},
+     bombs:[],flames:[],powerups:{},input:[0,0],deathT:0,grid:null,enemies:[]};
+  scoreEl.textContent='0';
+  startLevel(1);
+}
+function startLevel(lv){
+  var b=buildLevel(lv);
+  S.grid=b.grid; S.enemies=b.enemies;
+  S.bombs=[]; S.flames=[]; S.powerups={};
+  S.player.x=1.5; S.player.y=1.5; S.player.alive=true;
+  S.level=lv; S.phase='play'; S.input=[0,0];
+  levelEl.textContent=lv; scoreEl.textContent=S.score;
+  msg.classList.remove('show'); nextBtn.style.display='none';
+  draw();
+}
+
+function addScore(n){
+  S.score+=n; scoreEl.textContent=S.score;
+  if(S.score>best){best=S.score;try{localStorage.setItem('gugujoy_bomber_best',String(best));}catch(e){}}
+}
+function blockedCell(cx,cy,forPlayer){
+  if(cx<0||cy<0||cx>=COLS||cy>=ROWS) return true;
+  var t=S.grid[cy][cx];
+  if(t===1||t===2) return true;
+  for(var i=0;i<S.bombs.length;i++){
+    var b=S.bombs[i];
+    if(!b.dead&&b.x===cx&&b.y===cy){
+      if(forPlayer&&b.pass) continue;
+      return true;
+    }
+  }
+  return false;
+}
+function collide(x,y,r,forPlayer){
+  var pts=[[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r]];
+  for(var i=0;i<4;i++){
+    if(blockedCell(Math.floor(pts[i][0]),Math.floor(pts[i][1]),forPlayer)) return true;
+  }
+  return false;
+}
+function moveEntity(e,dx,dy,dt,forPlayer){
+  var moved=false, sp=e.speed*dt, r=0.3;
+  var nx=e.x+dx*sp;
+  if(!collide(nx,e.y,r,forPlayer)){e.x=nx;moved=true;}
+  var ny=e.y+dy*sp;
+  if(!collide(e.x,ny,r,forPlayer)){e.y=ny;moved=true;}
+  return moved;
+}
+function tryPlaceBomb(){
+  if(!S||S.phase!=='play'||!S.player.alive) return false;
+  var p=S.player, cx=Math.floor(p.x), cy=Math.floor(p.y), i;
+  var active=0;
+  for(i=0;i<S.bombs.length;i++){
+    if(S.bombs[i].dead) continue;
+    active++;
+    if(S.bombs[i].x===cx&&S.bombs[i].y===cy) return false;
+  }
+  if(active>=p.maxBombs) return false;
+  S.bombs.push({x:cx,y:cy,fuse:3.0,range:p.range,dead:false,pass:true});
+  return true;
+}
+function flameCells(x,y,range){
+  var cells=[[x,y]], d, i, nx, ny, t;
+  for(d=0;d<4;d++){
+    for(i=1;i<=range;i++){
+      nx=x+DIRS[d][0]*i; ny=y+DIRS[d][1]*i;
+      if(nx<0||ny<0||nx>=COLS||ny>=ROWS) break;
+      t=S.grid[ny][nx];
+      if(t===1) break;
+      cells.push([nx,ny]);
+      if(t===2){ S.grid[ny][nx]=0; addScore(10); maybeDrop(nx,ny); break; }
+    }
+  }
+  return cells;
+}
+function inCells(x,y,cells){
+  for(var i=0;i<cells.length;i++) if(cells[i][0]===x&&cells[i][1]===y) return true;
+  return false;
+}
+function maybeDrop(x,y){
+  if(Math.random()<0.35){
+    var types=['fire','bomb','shoe'];
+    S.powerups[x+','+y]=types[(Math.random()*3)|0];
+  }
+}
+function applyPower(t){
+  var p=S.player;
+  if(t==='fire') p.range=Math.min(6,p.range+1);
+  else if(t==='bomb') p.maxBombs=Math.min(5,p.maxBombs+1);
+  else p.speed=Math.min(7,p.speed+0.7);
+  addScore(20);
+}
+function damageAt(cells){
+  var i, e, p=S.player;
+  for(i=0;i<S.enemies.length;i++){
+    e=S.enemies[i];
+    if(e.alive&&inCells(Math.floor(e.x),Math.floor(e.y),cells)){e.alive=false;addScore(100);}
+  }
+  if(p.alive&&inCells(Math.floor(p.x),Math.floor(p.y),cells)) killPlayer();
+}
+function detonate(b,queue){
+  b.dead=true;
+  var cells=flameCells(b.x,b.y,b.range);
+  S.flames.push({cells:cells,life:0.55});
+  var i;
+  for(i=0;i<S.bombs.length;i++){
+    var o=S.bombs[i];
+    if(!o.dead&&inCells(o.x,o.y,cells)) queue.push(o);
+  }
+  damageAt(cells);
+}
+function updateBombs(dt){
+  var queue=[], i;
+  for(i=0;i<S.bombs.length;i++){
+    var b=S.bombs[i];
+    if(!b.dead){ b.fuse-=dt; if(b.fuse<=0) queue.push(b); }
+  }
+  while(queue.length){
+    var b=queue.shift();
+    if(b.dead) continue;
+    detonate(b,queue);
+  }
+  S.bombs=S.bombs.filter(function(b){return !b.dead;});
+}
+function updateFlames(dt){
+  for(var i=S.flames.length-1;i>=0;i--){
+    var f=S.flames[i];
+    f.life-=dt;
+    if(f.life<=0){S.flames.splice(i,1);continue;}
+    damageAt(f.cells);
+  }
+}
+function killPlayer(){
+  var p=S.player;
+  if(!p.alive||S.phase!=='play') return;
+  p.alive=false; S.phase='dying'; S.deathT=0.9;
+}
+function tick(dt){
+  if(!S||S.phase!=='play') return;
+  S.t+=dt;
+  var p=S.player, i, e;
+  if(p.alive){
+    var d=S.input;
+    if(d[0]||d[1]) moveEntity(p,d[0],d[1],dt,true);
+    var pcx=Math.floor(p.x), pcy=Math.floor(p.y);
+    for(i=0;i<S.bombs.length;i++){var b=S.bombs[i]; if(b.x!==pcx||b.y!==pcy) b.pass=false;}
+    var k=pcx+','+pcy;
+    if(S.powerups[k]){applyPower(S.powerups[k]);delete S.powerups[k];}
+  }
+  for(i=0;i<S.enemies.length;i++){
+    e=S.enemies[i];
+    if(!e.alive) continue;
+    e.retarget-=dt;
+    var moved=moveEntity(e,e.dir[0],e.dir[1],dt,false);
+    if(!moved||e.retarget<=0){
+      var opts=[];
+      for(var q=0;q<4;q++){
+        var dd=DIRS[q];
+        if(!blockedCell(Math.floor(e.x+dd[0]*0.6),Math.floor(e.y+dd[1]*0.6),false)) opts.push(dd);
+      }
+      if(opts.length){var nd=opts[(Math.random()*opts.length)|0];e.dir=[nd[0],nd[1]];}
+      e.retarget=0.4+Math.random()*0.8;
+    }
+  }
+  updateBombs(dt);
+  updateFlames(dt);
+  if(p.alive){
+    for(i=0;i<S.enemies.length;i++){
+      e=S.enemies[i];
+      if(e.alive&&Math.abs(e.x-p.x)<0.55&&Math.abs(e.y-p.y)<0.55){killPlayer();break;}
+    }
+  }
+  if(p.alive){
+    var allDead=true;
+    for(i=0;i<S.enemies.length;i++) if(S.enemies[i].alive){allDead=false;break;}
+    if(allDead){
+      addScore(500);
+      if(S.level>=3) winGame(); else levelClear();
+    }
+  }
+}
+function levelClear(){
+  S.phase='clear';
+  msgText.textContent='🎉 第 '+S.level+' 关通过！';
+  msgSub.textContent='过关奖励 +500 · 得分 '+S.score;
+  nextBtn.style.display='';
+  msg.classList.add('show');
+}
+function winGame(){
+  S.phase='win';
+  if(S.score>best){best=S.score;try{localStorage.setItem('gugujoy_bomber_best',String(best));}catch(e){}}
+  msgText.textContent='🏆 全部通关！';
+  msgSub.textContent='你是真正的炸弹小子！得分 '+S.score+' · 历史最高 '+best;
+  msg.classList.add('show');
+}
+function gameOver(){
+  S.phase='over';
+  if(S.score>best){best=S.score;try{localStorage.setItem('gugujoy_bomber_best',String(best));}catch(e){}}
+  msgText.textContent='😵 游戏结束';
+  msgSub.textContent='第 '+S.level+' 关 · 得分 '+S.score+' · 历史最高 '+best;
+  msg.classList.add('show');
+}
+function loop(t){
+  raf=requestAnimationFrame(loop);
+  var dt=Math.min((t-lastT)/1000,0.05); lastT=t;
+  if(S.phase==='play') tick(dt);
+  else if(S.phase==='dying'){S.deathT-=dt; if(S.deathT<=0) gameOver();}
+  draw();
+}
+
+/* ---------- rendering ---------- */
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+function draw(){
+  if(!S||!S.grid) return;
+  var x,y;
+  ctx.fillStyle='#FFF8E7'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='rgba(217,122,18,.07)'; ctx.lineWidth=1;
+  for(var g=1;g<COLS;g++){ctx.beginPath();ctx.moveTo(g*CELL,0);ctx.lineTo(g*CELL,cv.height);ctx.stroke();}
+  for(g=1;g<ROWS;g++){ctx.beginPath();ctx.moveTo(0,g*CELL);ctx.lineTo(cv.width,g*CELL);ctx.stroke();}
+  for(y=0;y<ROWS;y++)for(x=0;x<COLS;x++){
+    var t=S.grid[y][x], px=x*CELL, py=y*CELL;
+    if(t===1){
+      ctx.fillStyle='#C89B6D'; rr(px+1,py+1,CELL-2,CELL-2,6); ctx.fill();
+      ctx.strokeStyle='rgba(92,61,46,.25)'; ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(px+4,py+CELL/2);ctx.lineTo(px+CELL-4,py+CELL/2);ctx.stroke();
+    }else if(t===2){
+      ctx.fillStyle='#EDBE7E'; rr(px+3,py+3,CELL-6,CELL-6,5); ctx.fill();
+      ctx.strokeStyle='#D9A05A'; ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(px+8,py+8);ctx.lineTo(px+CELL-8,py+CELL-8);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(px+CELL-8,py+8);ctx.lineTo(px+8,py+CELL-8);ctx.stroke();
+    }
+  }
+  var k;
+  ctx.font='20px serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  for(k in S.powerups){
+    var pp=k.split(','), icon=S.powerups[k]==='fire'?'🔥':(S.powerups[k]==='bomb'?'💣':'👟');
+    ctx.fillText(icon,(+pp[0])*CELL+CELL/2,(+pp[1])*CELL+CELL/2+1);
+  }
+  var i;
+  for(i=0;i<S.bombs.length;i++) drawBomb(S.bombs[i]);
+  for(i=0;i<S.flames.length;i++){
+    var f=S.flames[i], a=Math.min(1,f.life/0.3);
+    ctx.globalAlpha=a;
+    for(var c=0;c<f.cells.length;c++){
+      var fx=f.cells[c][0]*CELL, fy=f.cells[c][1]*CELL;
+      ctx.fillStyle='#FF9A3D'; rr(fx+2,fy+2,CELL-4,CELL-4,9); ctx.fill();
+      ctx.fillStyle='#FFD23E'; rr(fx+9,fy+9,CELL-18,CELL-18,6); ctx.fill();
+    }
+    ctx.globalAlpha=1;
+  }
+  for(i=0;i<S.enemies.length;i++) if(S.enemies[i].alive) drawEnemy(S.enemies[i]);
+  if(S.player.alive) drawPlayer();
+}
+function drawBomb(b){
+  var px=b.x*CELL+CELL/2, py=b.y*CELL+CELL/2;
+  var pulse=b.fuse<1?1+Math.sin(S.t*30)*0.1:1;
+  ctx.fillStyle='rgba(92,61,46,.18)';
+  ctx.beginPath();ctx.ellipse(px,py+11,11,4,0,0,7);ctx.fill();
+  ctx.fillStyle='#4A3728';
+  ctx.beginPath();ctx.arc(px,py,12*pulse,0,7);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.25)';
+  ctx.beginPath();ctx.arc(px-4,py-4,3.5,0,7);ctx.fill();
+  ctx.strokeStyle='#8A6B58'; ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(px,py-12);ctx.quadraticCurveTo(px+6,py-20,px+11,py-18);ctx.stroke();
+  var fl=3+Math.sin(S.t*40)*1.5;
+  ctx.fillStyle=b.fuse<1?'#FF5A2A':'#FFB03A';
+  ctx.beginPath();ctx.arc(px+11,py-18,fl,0,7);ctx.fill();
+}
+function drawPlayer(){
+  var p=S.player, px=p.x*CELL, py=p.y*CELL;
+  ctx.fillStyle='rgba(92,61,46,.18)';
+  ctx.beginPath();ctx.ellipse(px,py+12,11,4,0,0,7);ctx.fill();
+  ctx.fillStyle='#F0902A';
+  ctx.beginPath();ctx.arc(px,py,13,0,7);ctx.fill();
+  ctx.lineWidth=2.5; ctx.strokeStyle='#D97A12';
+  ctx.beginPath();ctx.arc(px,py,13,0,7);ctx.stroke();
+  ctx.fillStyle='#FFEFD6';
+  ctx.beginPath();ctx.ellipse(px,py+3,8,6.5,0,0,7);ctx.fill();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(px-4.5,py-3,3.4,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(px+4.5,py-3,3.4,0,7);ctx.fill();
+  ctx.fillStyle='#5C3D2E';
+  ctx.beginPath();ctx.arc(px-4.5,py-2.6,1.7,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(px+4.5,py-2.6,1.7,0,7);ctx.fill();
+  ctx.strokeStyle='#5C3D2E'; ctx.lineWidth=1.6;
+  ctx.beginPath();ctx.arc(px,py+2,4,0.15*Math.PI,0.85*Math.PI);ctx.stroke();
+  ctx.fillStyle='#D97A12';
+  ctx.fillRect(px-3,py-19,6,7);
+  ctx.strokeStyle='#8A6B58'; ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(px,py-19);ctx.quadraticCurveTo(px+4,py-25,px+8,py-23);ctx.stroke();
+}
+function drawEnemy(e){
+  var px=e.x*CELL, py=e.y*CELL;
+  ctx.fillStyle='rgba(92,61,46,.18)';
+  ctx.beginPath();ctx.ellipse(px,py+11,10,4,0,0,7);ctx.fill();
+  ctx.fillStyle='#9B7ED9';
+  ctx.beginPath();ctx.arc(px,py,12,0,7);ctx.fill();
+  ctx.lineWidth=2; ctx.strokeStyle='#6E56B0';
+  ctx.beginPath();ctx.arc(px,py,12,0,7);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(px-9,py-11);ctx.lineTo(px-12,py-17);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(px+9,py-11);ctx.lineTo(px+12,py-17);ctx.stroke();
+  ctx.fillStyle='#fff';
+  ctx.beginPath();ctx.arc(px-4.5,py-2,3.6,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(px+4.5,py-2,3.6,0,7);ctx.fill();
+  ctx.fillStyle='#3A2E5C';
+  ctx.beginPath();ctx.arc(px-4.5,py-1.4,1.8,0,7);ctx.fill();
+  ctx.beginPath();ctx.arc(px+4.5,py-1.4,1.8,0,7);ctx.fill();
+  ctx.strokeStyle='#3A2E5C'; ctx.lineWidth=2.4;
+  ctx.beginPath();ctx.moveTo(px-8,py-8);ctx.lineTo(px-2,py-5.5);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(px+8,py-8);ctx.lineTo(px+2,py-5.5);ctx.stroke();
+}
+
+/* ---------- input ---------- */
+document.getElementById('restart').onclick=function(){cancelAnimationFrame(raf);resetGame();raf=requestAnimationFrame(function(t){lastT=t;loop(t);});};
+againBtn.onclick=function(){cancelAnimationFrame(raf);resetGame();raf=requestAnimationFrame(function(t){lastT=t;loop(t);});};
+nextBtn.onclick=function(){
+  msg.classList.remove('show'); nextBtn.style.display='none';
+  startLevel(S.level+1);
+};
+var held={};
+function recomputeInput(){
+  var order=held.order||[];
+  for(var i=order.length-1;i>=0;i--){
+    if(held[order[i]]){S.input=held[order[i]];return;}
+  }
+  S.input=[0,0];
+}
+var KEYMAP={37:[-1,0],38:[0,-1],39:[1,0],40:[0,1],65:[-1,0],87:[0,-1],68:[1,0],83:[0,1]};
+document.addEventListener('keydown',function(e){
+  if(e.keyCode===32){e.preventDefault();if(!e.repeat)tryPlaceBomb();return;}
+  var d=KEYMAP[e.keyCode]; if(!d)return; e.preventDefault();
+  held[e.keyCode]=d; held.order=held.order||[]; 
+  if(held.order.indexOf(e.keyCode)<0)held.order.push(e.keyCode);
+  recomputeInput();
+});
+document.addEventListener('keyup',function(e){
+  if(!KEYMAP[e.keyCode])return;
+  delete held[e.keyCode];
+  recomputeInput();
+});
+document.querySelectorAll('.dbtn').forEach(function(btn){
+  var dx=+btn.dataset.dx, dy=+btn.dataset.dy;
+  function down(e){e.preventDefault();S.input=[dx,dy];btn._held=true;}
+  function up(){if(btn._held){btn._held=false;if(S.input[0]===dx&&S.input[1]===dy)S.input=[0,0];}}
+  btn.addEventListener('pointerdown',down);
+  btn.addEventListener('pointerup',up);
+  btn.addEventListener('pointercancel',up);
+  btn.addEventListener('pointerleave',up);
+});
+document.getElementById('bombBtn').addEventListener('pointerdown',function(e){e.preventDefault();tryPlaceBomb();});
+document.getElementById('wrap').addEventListener('contextmenu',function(e){e.preventDefault();});
+
+window.__test={getS:function(){return S;},tick:tick,tryPlaceBomb:tryPlaceBomb,
+  buildLevel:buildLevel,startLevel:startLevel,resetGame:resetGame,
+  flameCells:flameCells,setInput:function(x,y){S.input=[x,y];},
+  detonateOf:function(i){var q=[];detonate(S.bombs[i],q);while(q.length){var b=q.shift();if(!b.dead)detonate(b,q);}}};
+
+resetGame();
+raf=requestAnimationFrame(function(t){lastT=t;loop(t);});
+})();
+</script>
+</body>
+</html>

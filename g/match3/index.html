@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>消消乐 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="消消乐：谷谷乐园出品的消除小游戏，交换相邻宝石凑 3 连消，30 步挑战最高分！手机点选拖拽、电脑鼠标都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.board{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.cell{aspect-ratio:1;background:#FFFDF6;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:min(6.4vw,28px);cursor:pointer;box-shadow:inset 0 -2px 0 rgba(217,122,18,.12);transition:transform .12s}
+.cell.sel{outline:3px solid #D97A12;transform:scale(1.1)}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.9);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.7}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">💎 消消乐</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="moves">30</div><div class="label">步数</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">交换相邻两颗宝石，凑出 <b>3 连</b>即可消除！连消越多分越高。共 <b>30</b> 步，用完结算。</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<div class="board" id="board"></div>
+<div class="msg" id="msg"><p id="msgText">⏰ 步数用完！</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>先点一颗宝石选中，再点相邻的格子交换（或直接拖拽交换）。只有能凑出 3 连消的交换才有效，无效交换会弹回去且不耗步数。消除后上方宝石掉落补充，可能触发级联连消（分数翻倍）！3 连=30 分，4 连=60 分，5 连及以上=100 分。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var GEMS=['🔴','🟠','🟡','🟢','🔵','🟣'];
+var N=8, MAXMOVES=30;
+var boardEl=document.getElementById('board');
+var scoreEl=document.getElementById('score'), movesEl=document.getElementById('moves');
+var msg=document.getElementById('msg'), msgText=document.getElementById('msgText'), msgSub=document.getElementById('msgSub');
+var S=null, refillQ=[], rngS=0, best=0;
+try{ best=parseInt(localStorage.getItem('gugujoy_match3_best')||'0',10)||0; }catch(e){}
+
+function rnd(n){
+  if(rngS){ rngS=(rngS*1664525+1013904223)>>>0; return (rngS>>>8)%n; }
+  return (Math.random()*n)|0;
+}
+function newBoard(){
+  var b=[],x,y,g;
+  for(y=0;y<N;y++){ b.push([]); for(x=0;x<N;x++){
+    do{ g=rnd(6); }while(
+      (x>=2&&b[y][x-1]===g&&b[y][x-2]===g)||
+      (y>=2&&b[y-1][x]===g&&b[y-2][x]===g));
+    b[y].push(g);
+  }}
+  return b;
+}
+function reset(){
+  S={board:newBoard(),score:0,moves:MAXMOVES,sel:null,over:false};
+  scoreEl.textContent='0'; movesEl.textContent=MAXMOVES;
+  msg.classList.remove('show'); render();
+}
+function findMatches(b){
+  var groups=[],x,y,i,gr,g,len;
+  for(y=0;y<N;y++){ x=0; while(x<N){
+    g=b[y][x]; len=1;
+    while(x+len<N&&b[y][x+len]===g) len++;
+    if(g>=0&&len>=3){ gr=[]; for(i=0;i<len;i++) gr.push([x+i,y]); groups.push(gr); }
+    x+=len;
+  }}
+  for(x=0;x<N;x++){ y=0; while(y<N){
+    g=b[y][x]; len=1;
+    while(y+len<N&&b[y+len][x]===g) len++;
+    if(g>=0&&len>=3){ gr=[]; for(i=0;i<len;i++) gr.push([x,y+i]); groups.push(gr); }
+    y+=len;
+  }}
+  return groups;
+}
+function groupScore(len){ return len>=5?100:(len===4?60:30); }
+function dropFill(){
+  var x,y,i;
+  for(x=0;x<N;x++){
+    var col=[];
+    for(y=N-1;y>=0;y--) if(S.board[y][x]>=0) col.push(S.board[y][x]);
+    for(y=N-1,i=0;y>=0;y--,i++){
+      S.board[y][x]=(i<col.length)?col[i]:(refillQ.length?refillQ.shift():rnd(6));
+    }
+  }
+}
+// 消除 + 掉落 + 级联，返回本轮总得分
+function resolveBoard(){
+  var gained=0,level=0,groups,gi,pi;
+  while(true){
+    groups=findMatches(S.board);
+    if(!groups.length) break;
+    level++;
+    for(gi=0;gi<groups.length;gi++) gained+=groupScore(groups[gi].length)*level;
+    for(gi=0;gi<groups.length;gi++)
+      for(pi=0;pi<groups[gi].length;pi++)
+        S.board[groups[gi][pi][1]][groups[gi][pi][0]]=-1;
+    dropFill();
+  }
+  S.score+=gained;
+  return gained;
+}
+function trySwap(x1,y1,x2,y2){
+  if(!S||S.over) return false;
+  if(Math.abs(x1-x2)+Math.abs(y1-y2)!==1) return false;
+  var b=S.board,t;
+  t=b[y1][x1]; b[y1][x1]=b[y2][x2]; b[y2][x2]=t;
+  if(!findMatches(b).length){ // 无效交换：弹回去
+    t=b[y1][x1]; b[y1][x1]=b[y2][x2]; b[y2][x2]=t;
+    return false;
+  }
+  S.moves--; movesEl.textContent=S.moves;
+  resolveBoard();
+  scoreEl.textContent=S.score;
+  if(S.score>best){ best=S.score; try{localStorage.setItem('gugujoy_match3_best',String(best));}catch(e){} }
+  if(S.moves<=0) gameOver();
+  return true;
+}
+function gameOver(){
+  S.over=true;
+  msgText.textContent='⏰ 步数用完！';
+  msgSub.innerHTML='本局得分 <b>'+S.score+'</b><br>历史最高 '+best;
+  msg.classList.add('show');
+}
+function render(){
+  var html='',x,y,cls;
+  for(y=0;y<N;y++) for(x=0;x<N;x++){
+    cls='cell'+(S.sel&&S.sel[0]===x&&S.sel[1]===y?' sel':'');
+    html+='<div class="'+cls+'" data-x="'+x+'" data-y="'+y+'">'+GEMS[S.board[y][x]]+'</div>';
+  }
+  boardEl.innerHTML=html;
+}
+function cellFromEvent(e){
+  var el=e.target&&e.target.closest?e.target.closest('.cell'):null;
+  if(!el) return null;
+  return [parseInt(el.getAttribute('data-x'),10),parseInt(el.getAttribute('data-y'),10)];
+}
+var downCell=null;
+boardEl.addEventListener('pointerdown',function(e){
+  var c=cellFromEvent(e); if(!c) return;
+  downCell=c;
+});
+boardEl.addEventListener('pointerup',function(e){
+  if(!downCell) return;
+  var from=downCell; downCell=null;
+  var to=cellFromEvent(e);
+  if(!to) return;
+  if(from[0]===to[0]&&from[1]===to[1]){ // 点选模式
+    if(!S.sel){ S.sel=from; }
+    else if(S.sel[0]===from[0]&&S.sel[1]===from[1]){ S.sel=null; }
+    else{ trySwap(S.sel[0],S.sel[1],from[0],from[1]); S.sel=null; }
+    render(); return;
+  }
+  trySwap(from[0],from[1],to[0],to[1]); // 拖拽模式
+  S.sel=null; render();
+});
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+reset();
+
+window.__test={
+  reset:reset,
+  swap:trySwap,
+  resolve:resolveBoard,
+  findMatches:function(){ return findMatches(S.board); },
+  forceBoard:function(b){ S.board=b.map(function(r){return r.slice();}); S.sel=null; render(); },
+  board:function(){ return S.board.map(function(r){return r.slice();}); },
+  moves:function(){ return S.moves; },
+  score:function(){ return S.score; },
+  over:function(){ return S.over; },
+  seed:function(s){ rngS=s>>>0||1; },
+  setRefillQueue:function(q){ refillQ=q.slice(); }
+};
+})();
+</script>
+</body>
+</html>

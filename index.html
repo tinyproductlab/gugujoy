@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>谷谷乐园 GUGUJOY · 免费网页小游戏，点开就玩</title>
+<meta name="description" content="谷谷乐园是小产品实验室的网页游戏小窝：猫猫纸箱、猫咪2048 等 20 款免费小游戏，手机电脑点开即玩，无需下载。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --cream:#FFF7EC;--orange:#F0902A;--orange-d:#D97A12;--brown:#5C3D2E;--brown-l:#8A6B58;
+  --pink:#FF8FA3;--line:#F3D9B8;
+  --shadow:0 10px 30px rgba(217,122,18,.12);
+  --shadow-soft:0 6px 18px rgba(217,122,18,.08);
+}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+background:var(--cream);color:var(--brown);line-height:1.7;
+background-image:radial-gradient(circle at 12% 8%,#FFE3B8 0 90px,transparent 91px),
+radial-gradient(circle at 88% 20%,#FFD9E2 0 70px,transparent 71px),
+radial-gradient(circle at 8% 60%,#FFE9C9 0 110px,transparent 111px)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+section{scroll-margin-top:84px}
+
+/* ---- 导航（sticky 毛玻璃） ---- */
+.nav{position:sticky;top:0;z-index:50;
+background:rgba(255,247,236,.82);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);
+border-bottom:1px solid rgba(217,122,18,.14)}
+.nav-in{max-width:1080px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;text-decoration:none;color:var(--brown)}
+.logo .box{width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,var(--orange),#FFC46B);
+display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 4px 12px rgba(240,144,42,.35)}
+.logo small{display:block;font-size:10px;color:var(--brown-l);font-weight:600;letter-spacing:3px}
+.nav .links a{color:var(--brown-l);text-decoration:none;margin-left:20px;font-size:15px;font-weight:600}
+.nav .links a:hover{color:var(--orange-d)}
+
+/* ---- hero ---- */
+.hero{margin-top:20px;border-radius:28px;position:relative;overflow:hidden;
+background:linear-gradient(135deg,#E8821A 0%,var(--orange) 45%,#FFB84D 100%);
+color:#fff;text-align:center;padding:64px 24px 52px;box-shadow:0 18px 44px rgba(217,122,18,.28)}
+.hero::before{content:"";position:absolute;width:420px;height:420px;border-radius:50%;
+background:rgba(255,255,255,.12);top:-160px;right:-120px}
+.hero::after{content:"";position:absolute;width:300px;height:300px;border-radius:50%;
+background:rgba(255,255,255,.10);bottom:-140px;left:-100px}
+.float{position:absolute;pointer-events:none;animation:floaty 6s ease-in-out infinite;filter:drop-shadow(0 6px 8px rgba(0,0,0,.12))}
+@keyframes floaty{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-18px) rotate(8deg)}}
+.hero .en{letter-spacing:8px;font-size:13px;font-weight:700;opacity:.92;position:relative;z-index:1}
+.hero h1{font-size:58px;font-weight:900;letter-spacing:8px;margin:10px 0 6px;position:relative;z-index:1;
+text-shadow:0 4px 18px rgba(150,70,0,.25)}
+.hero .sub{font-size:18px;font-weight:600;opacity:.96;position:relative;z-index:1}
+.hero .pitch{margin:14px auto 0;max-width:560px;font-size:15px;opacity:.92;position:relative;z-index:1}
+.cta-row{margin-top:26px;display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative;z-index:1}
+.btn{display:inline-block;padding:13px 34px;border-radius:999px;font-size:16px;font-weight:800;text-decoration:none;
+transition:transform .18s,box-shadow .18s}
+.btn:hover{transform:translateY(-2px)}
+.btn-p{background:#fff;color:var(--orange-d);box-shadow:0 10px 24px rgba(120,60,0,.25)}
+.btn-g{background:rgba(255,255,255,.16);color:#fff;border:2px solid rgba(255,255,255,.65)}
+.stats{margin-top:26px;display:inline-flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center;
+background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;
+padding:10px 26px;font-size:14px;font-weight:700;position:relative;z-index:1}
+.stats i{font-style:normal;opacity:.55}
+
+/* ---- 板块标题 ---- */
+.sec{padding:34px 0 6px}
+.sec-title{font-size:25px;font-weight:800;margin-bottom:4px}
+.sec-sub{color:var(--brown-l);margin-bottom:20px;font-size:14px}
+.count-line{color:var(--brown-l);font-size:13px;margin:2px 0 14px}
+
+/* ---- 本周主推 ---- */
+.flag{background:#fff;border:3px solid #FFE3B8;border-radius:24px;overflow:hidden;
+box-shadow:var(--shadow);display:grid;margin-bottom:10px}
+.flag .pic{position:relative;min-height:230px;background:linear-gradient(135deg,#FFE9C4,#FFD9A8)}
+.flag .pic .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:88px}
+.flag .pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.flag .info{padding:30px}
+.tag{display:inline-block;background:var(--pink);color:#fff;font-size:13px;font-weight:700;
+padding:4px 14px;border-radius:999px;margin-bottom:12px}
+.flag h2{font-size:30px;margin-bottom:10px}
+.flag p{color:var(--brown-l);font-size:15px;margin-bottom:22px}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap}
+.btn-d{background:#F3EDE4;color:#A08B74;cursor:default}
+.btn-site{background:#fff;color:var(--brown);border:2px solid var(--line);box-shadow:none}
+.btn-site:hover{border-color:var(--orange);color:var(--orange-d)}
+
+/* ---- 搜索 + 分类 ---- */
+.toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.search{flex:1 1 220px;position:relative}
+.search input{width:100%;padding:12px 18px 12px 44px;border-radius:999px;border:2px solid var(--line);
+background:#fff;font-size:15px;color:var(--brown);outline:none;transition:border-color .15s}
+.search input:focus{border-color:var(--orange)}
+.search .icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:18px;opacity:.6}
+.pills{display:flex;gap:10px;flex-wrap:wrap}
+.pill{border:2px solid var(--line);background:#fff;color:var(--brown-l);border-radius:999px;
+padding:9px 20px;font-size:14px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit}
+.pill:hover{border-color:var(--orange);color:var(--orange-d)}
+.pill.on{background:var(--orange);border-color:var(--orange);color:#fff;box-shadow:0 6px 16px rgba(240,144,42,.35)}
+.pill .n{opacity:.75;font-weight:600}
+
+/* ---- 游戏网格 ---- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px}
+.card{background:#fff;border-radius:20px;overflow:hidden;border:2px solid #FFE3B8;
+box-shadow:var(--shadow-soft);text-decoration:none;color:var(--brown);
+transition:transform .2s,box-shadow .2s;display:block}
+.card:hover{transform:translateY(-6px);box-shadow:0 16px 34px rgba(217,122,18,.18)}
+.card .thumb{position:relative;aspect-ratio:4/3;overflow:hidden;
+background:linear-gradient(135deg,#FFF3DE,#FFE0B0)}
+.card .thumb .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:52px}
+.card .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+transition:transform .35s ease}
+.card:hover .thumb img{transform:scale(1.07)}
+.card .body{padding:14px 16px 16px}
+.card .row1{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.card h3{font-size:17px;font-weight:800}
+.chip{flex:none;font-size:12px;font-weight:700;color:var(--orange-d);background:#FFF1DC;
+border-radius:999px;padding:3px 11px}
+.card .meta{font-size:12.5px;color:var(--brown-l);margin-bottom:10px}
+.card .go{display:inline-block;font-size:14px;font-weight:800;color:var(--orange-d)}
+.card:hover .go{text-decoration:underline}
+.empty{display:none;text-align:center;padding:56px 20px;color:var(--brown-l);font-size:15px;background:#fff;
+border:2px dashed var(--line);border-radius:20px}
+
+/* ---- 关于 ---- */
+.about{background:#fff;border:3px solid #FFE3B8;border-radius:24px;padding:32px;
+box-shadow:var(--shadow);display:flex;gap:24px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.about .lab{flex:none;width:76px;height:76px;border-radius:22px;font-size:38px;
+background:linear-gradient(135deg,var(--orange),#FFC46B);display:flex;align-items:center;justify-content:center;
+box-shadow:0 8px 20px rgba(240,144,42,.35)}
+.about .txt{flex:1 1 300px}
+.about h2{font-size:22px;margin-bottom:8px}
+.about p{color:var(--brown-l);font-size:15px}
+
+footer{text-align:center;padding:34px 0 44px;color:var(--brown-l);font-size:13px;line-height:2}
+
+@media(min-width:720px){
+  .flag{grid-template-columns:1.05fr 1fr}
+  .flag .pic{min-height:300px}
+  .hero h1{font-size:68px}
+}
+@media(max-width:480px){
+  .hero{padding:50px 18px 42px}
+  .hero h1{font-size:46px;letter-spacing:5px}
+  .hero .en{letter-spacing:4px}
+  .nav .links a{margin-left:14px;font-size:14px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:14px}
+  .flag .info{padding:22px}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-in">
+    <a class="logo" href="#"><span class="box">📦</span><span>谷谷乐园<small>GUGUJOY.COM</small></span></a>
+    <div class="links"><a href="#featured">主推</a><a href="#games">游戏</a><a href="#about">关于</a></div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ============ HERO ============ -->
+<div class="hero">
+  <span class="float" style="top:14%;left:8%;font-size:34px;animation-delay:0s">🎈</span>
+  <span class="float" style="top:60%;left:5%;font-size:28px;animation-delay:1.2s">🐱</span>
+  <span class="float" style="top:22%;right:9%;font-size:32px;animation-delay:.6s">📦</span>
+  <span class="float" style="top:66%;right:6%;font-size:26px;animation-delay:1.8s">⭐</span>
+  <span class="float" style="top:40%;left:14%;font-size:22px;animation-delay:2.4s">🍎</span>
+  <span class="float" style="top:44%;right:15%;font-size:24px;animation-delay:3s">💣</span>
+  <div class="en">GUGUJOY · 免费网页游戏小窝</div>
+  <h1>谷谷乐园</h1>
+  <div class="sub">点开就玩，不用下载</div>
+  <p class="pitch">20 款手工打磨的网页小游戏：猫咪 2048、扫雷、俄罗斯方块、坦克保卫战……手机电脑打开浏览器就能玩，全部免费。</p>
+  <div class="cta-row">
+    <a class="btn btn-p" href="#games">开始玩 →</a>
+    <a class="btn btn-g" href="#about">认识实验室</a>
+  </div>
+  <div class="stats"><span>20 款游戏</span><i>·</i><span>全部免费</span><i>·</i><span>手机电脑即开即玩</span></div>
+</div>
+
+<!-- ============ 本周主推 ============ -->
+<section class="sec" id="featured">
+  <div class="sec-title">🔥 本周主推</div>
+  <div class="sec-sub">实验室的亲儿子，必玩</div>
+  <div class="flag">
+    <div class="pic">
+      <div class="ph">🐱📦</div>
+      <img src="assets/covers/catbox.jpg" alt="猫猫纸箱封面" onerror="this.style.display='none'">
+    </div>
+    <div class="info">
+      <span class="tag">网页版 · 即将上线</span>
+      <h2>猫猫纸箱</h2>
+      <p>600 关猫咪逻辑益智游戏：跟着猫咪放纸箱，点亮猫爪灯，一关一关烧脑又治愈。网页版正在打包中，上线后这里直接开玩。</p>
+      <div class="btn-row">
+        <a class="btn btn-d">敬请期待</a>
+        <a class="btn btn-site" href="https://catbox.gugujoy.com" target="_blank" rel="noopener">先去官网看看 →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 全部游戏 ============ -->
+<section class="sec" id="games">
+  <div class="sec-title">🎮 全部游戏</div>
+  <div class="sec-sub">每一款都能在浏览器里直接玩</div>
+  <div class="toolbar">
+    <div class="search">
+      <span class="icon">🔍</span>
+      <input id="q" type="search" placeholder="搜索游戏，比如：扫雷、跳跃……" autocomplete="off">
+    </div>
+    <div class="pills">
+      <button class="pill on" data-cat="all">全部 <span class="n">20</span></button>
+      <button class="pill" data-cat="puzzle">益智 <span class="n">8</span></button>
+      <button class="pill" data-cat="arcade">街机 <span class="n">12</span></button>
+    </div>
+  </div>
+  <div class="count-line" id="count">共 20 款</div>
+
+  <div class="grid" id="grid">
+    <a class="card" href="g/2048/" data-cat="puzzle" data-name="猫咪2048 2048 猫咪 数字">
+      <div class="thumb"><div class="ph">🐱</div><img src="assets/covers/2048.jpg" alt="猫咪2048" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>猫咪2048</h3><span class="chip">益智</span></div><div class="meta">益智 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/snake/" data-cat="arcade" data-name="贪吃蛇 snake 蛇">
+      <div class="thumb"><div class="ph">🐍</div><img src="assets/covers/snake.jpg" alt="贪吃蛇" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>贪吃蛇</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/minesweeper/" data-cat="puzzle" data-name="扫雷 minesweeper 地雷">
+      <div class="thumb"><div class="ph">💣</div><img src="assets/covers/minesweeper.jpg" alt="扫雷" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>扫雷</h3><span class="chip">益智</span></div><div class="meta">益智 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/breakout/" data-cat="arcade" data-name="打砖块 breakout 砖块 弹球">
+      <div class="thumb"><div class="ph">🧱</div><img src="assets/covers/breakout.jpg" alt="打砖块" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>打砖块</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/onestroke/" data-cat="puzzle" data-name="一笔画 onestroke 一笔">
+      <div class="thumb"><div class="ph">✏️</div><img src="assets/covers/onestroke.jpg" alt="一笔画" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>一笔画</h3><span class="chip">益智</span></div><div class="meta">益智 · 6 关 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/tetris/" data-cat="arcade" data-name="俄罗斯方块 tetris 方块">
+      <div class="thumb"><div class="ph">🟧</div><img src="assets/covers/tetris.jpg" alt="俄罗斯方块" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>俄罗斯方块</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/memory/" data-cat="puzzle" data-name="记忆翻牌 memory 翻牌 记忆">
+      <div class="thumb"><div class="ph">🃏</div><img src="assets/covers/memory.jpg" alt="记忆翻牌" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>记忆翻牌</h3><span class="chip">益智</span></div><div class="meta">益智 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/puzzle15/" data-cat="puzzle" data-name="数字华容道 puzzle15 华容道 数字 滑块">
+      <div class="thumb"><div class="ph">🔢</div><img src="assets/covers/puzzle15.jpg" alt="数字华容道" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>数字华容道</h3><span class="chip">益智</span></div><div class="meta">益智 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/whackamole/" data-cat="arcade" data-name="打地鼠 whackamole 地鼠 锤子">
+      <div class="thumb"><div class="ph">🔨</div><img src="assets/covers/whackamole.jpg" alt="打地鼠" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>打地鼠</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/pong/" data-cat="arcade" data-name="乒乓对战 pong 乒乓球">
+      <div class="thumb"><div class="ph">🏓</div><img src="assets/covers/pong.jpg" alt="乒乓对战" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>乒乓对战</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/shooter/" data-cat="arcade" data-name="太空射击 shooter 射击 太空 飞机">
+      <div class="thumb"><div class="ph">🚀</div><img src="assets/covers/shooter.jpg" alt="太空射击" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>太空射击</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/match3/" data-cat="arcade" data-name="消消乐 match3 消除 三消">
+      <div class="thumb"><div class="ph">💎</div><img src="assets/covers/match3.jpg" alt="消消乐" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>消消乐</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/sudoku/" data-cat="puzzle" data-name="数独 sudoku 九宫格">
+      <div class="thumb"><div class="ph">📝</div><img src="assets/covers/sudoku.jpg" alt="数独" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>数独</h3><span class="chip">益智</span></div><div class="meta">益智 · 3 题 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/sokoban/" data-cat="puzzle" data-name="推箱子 sokoban 箱子">
+      <div class="thumb"><div class="ph">📦</div><img src="assets/covers/sokoban.jpg" alt="推箱子" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>推箱子</h3><span class="chip">益智</span></div><div class="meta">益智 · 5 关 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/linkup/" data-cat="puzzle" data-name="连连看 linkup 连连">
+      <div class="thumb"><div class="ph">🀄</div><img src="assets/covers/linkup.jpg" alt="连连看" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>连连看</h3><span class="chip">益智</span></div><div class="meta">益智 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/dodge/" data-cat="arcade" data-name="躲避陨石 dodge 陨石 躲避">
+      <div class="thumb"><div class="ph">☄️</div><img src="assets/covers/dodge.jpg" alt="躲避陨石" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>躲避陨石</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/balloons/" data-cat="arcade" data-name="射气球 balloons 气球">
+      <div class="thumb"><div class="ph">🎈</div><img src="assets/covers/balloons.jpg" alt="射气球" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>射气球</h3><span class="chip">街机</span></div><div class="meta">街机 · 单人 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/bomber/" data-cat="arcade" data-name="炸弹小子 bomber 炸弹">
+      <div class="thumb"><div class="ph">🧨</div><img src="assets/covers/bomber.jpg" alt="炸弹小子" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>炸弹小子</h3><span class="chip">街机</span></div><div class="meta">街机 · 3 关 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/platformer/" data-cat="arcade" data-name="超级跳跃 platformer 跳跃 袋鼠">
+      <div class="thumb"><div class="ph">🦘</div><img src="assets/covers/platformer.jpg" alt="超级跳跃" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>超级跳跃</h3><span class="chip">街机</span></div><div class="meta">街机 · 3 关 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+    <a class="card" href="g/tank/" data-cat="arcade" data-name="坦克保卫战 tank 坦克 保卫">
+      <div class="thumb"><div class="ph">🛡️</div><img src="assets/covers/tank.jpg" alt="坦克保卫战" loading="lazy" onerror="this.style.display='none'"></div>
+      <div class="body"><div class="row1"><h3>坦克保卫战</h3><span class="chip">街机</span></div><div class="meta">街机 · 3 关 · 手机电脑</div><span class="go">开始游戏 →</span></div>
+    </a>
+  </div>
+  <div class="empty" id="empty">😿 没有找到匹配的游戏，换个关键词或分类试试～</div>
+</section>
+
+<!-- ============ 关于 ============ -->
+<section class="sec" id="about">
+  <div class="sec-title">🔬 关于小产品实验室</div>
+  <div class="sec-sub">独立开发者的游戏实验田</div>
+  <div class="about">
+    <div class="lab">🔬</div>
+    <div class="txt">
+      <h2>小产品实验室</h2>
+      <p>一个独立开发者的游戏小作坊：从玩法原型到 600 关大体量，一个人慢慢打磨。猫猫纸箱是第一款正式上线的作品，这个小站会陆续上架更多点开即玩的网页小游戏。好玩的游戏，慢慢做。</p>
+    </div>
+  </div>
+</section>
+
+<footer>© 2026 小产品实验室 · gugujoy.com<br>好玩的游戏，慢慢做 🐾</footer>
+
+</div><!-- /wrap -->
+
+<script>
+(function(){
+  var cards=[].slice.call(document.querySelectorAll('#grid .card'));
+  var q=document.getElementById('q'),count=document.getElementById('count'),empty=document.getElementById('empty');
+  var pills=[].slice.call(document.querySelectorAll('.pill'));
+  var cat='all';
+  function apply(){
+    var kw=q.value.trim().toLowerCase(),n=0;
+    cards.forEach(function(c){
+      var okCat=(cat==='all'||c.getAttribute('data-cat')===cat);
+      var okKw=(!kw||c.getAttribute('data-name').toLowerCase().indexOf(kw)>-1);
+      var show=okCat&&okKw;
+      c.style.display=show?'':'none';
+      if(show)n++;
+    });
+    count.textContent='共 '+n+' 款';
+    empty.style.display=n?'none':'block';
+  }
+  pills.forEach(function(p){
+    p.addEventListener('click',function(){
+      pills.forEach(function(x){x.classList.remove('on')});
+      p.classList.add('on');
+      cat=p.getAttribute('data-cat');
+      apply();
+    });
+  });
+  q.addEventListener('input',apply);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>数独 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="数独：谷谷乐园出品的数字逻辑游戏，3 道难度递增的题目，填满 9x9 宫格挑战最快纪录！手机点选、电脑键盘都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.levels{display:flex;gap:8px;margin-bottom:10px}
+.levels button{flex:1;border:2px solid #F3D9B8;background:#fff;color:#8A6B58;border-radius:10px;padding:8px 0;font-size:14px;font-weight:700;cursor:pointer}
+.levels button.on{background:#F0902A;border-color:#F0902A;color:#fff}
+.board{display:grid;grid-template-columns:repeat(9,1fr);background:#D97A12;border:3px solid #D97A12;border-radius:8px;overflow:hidden}
+.cell{aspect-ratio:1;background:#FFFDF6;display:flex;align-items:center;justify-content:center;font-size:min(5.4vw,24px);cursor:pointer;border-right:1px solid #EBD6B4;border-bottom:1px solid #EBD6B4;color:#D97A12}
+.cell.fixed{color:#5C3D2E;font-weight:900;background:#FFF6E6;cursor:default}
+.cell.bl{border-left:2px solid #D97A12}
+.cell.bt{border-top:2px solid #D97A12}
+.cell.sel{background:#FFE4BC}
+.cell.err{color:#E5484D;background:#FFE9E9;font-weight:800}
+.pad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px}
+.pad button{border:0;border-radius:10px;background:#fff;padding:12px 0;font-size:20px;font-weight:800;color:#D97A12;cursor:pointer;box-shadow:0 2px 0 rgba(217,122,18,.18)}
+.pad button:active{transform:translateY(1px)}
+.pad button.erase{color:#8A6B58}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.92);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.7}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;margin:0 4px}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🔢 数独</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="timer">00:00</div><div class="label">用时</div></div>
+<div class="score-box"><div class="num" id="best">--</div><div class="label">最快纪录</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">每行、每列、每个 3×3 宫都要填入 <b>1-9</b> 且不重复。填错会标红，但不会锁死哦。</p>
+<button class="restart" id="restart">重来</button>
+</div>
+<div class="game-wrap" id="wrap">
+<div class="levels" id="levels"></div>
+<div class="board" id="board"></div>
+<div class="pad" id="pad"></div>
+<div class="msg" id="msg"><p id="msgText">🎉 挑战成功！</p><div class="sub" id="msgSub"></div><div><button id="again">再来一次</button><button id="next">下一关</button></div></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>先点一个空格子选中，再点下方数字键填入（电脑可直接按 1-9 键盘，Backspace/0 清除）。深色粗体是题目自带数字，不可修改。填错的数字会变红提示，随时可以改对。全部填满且正确即获胜，计时越短越好！</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var LEVELS=[
+{name:"简单",puzzle:"501700000800302174704061528000030000670215840200009765165428030380096400040070681",solution:"521784396896352174734961528458637219679215843213849765165428937387196452942573681"},
+{name:"中等",puzzle:"060000502802931607000020903090010060000000070007090208720063800009278000081040726",solution:"963784512852931647174625983298317465436852179517496238725163894649278351381549726"},
+{name:"困难",puzzle:"006900000000052007250000408760420030005610000020700000930541002004060003002000010",solution:"386974251491852367257136498769428135845613729123795846938541672514267983672389514"}
+];
+var boardEl=document.getElementById('board'), padEl=document.getElementById('pad'), levelsEl=document.getElementById('levels');
+var timerEl=document.getElementById('timer'), bestEl=document.getElementById('best');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub');
+var nextBtn=document.getElementById('next');
+var S=null, tickId=null;
+function bestKey(i){ return 'gugujoy_sudoku_best_'+i; }
+function getBest(i){ try{ var v=parseInt(localStorage.getItem(bestKey(i))||'0',10); return v>0?v:0; }catch(e){ return 0; } }
+function fmt(s){ var m=(s/60)|0, ss=s%60; return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
+function select(i){
+  var L=LEVELS[i];
+  S={level:i,grid:[],fixed:[],sel:-1,won:false,seconds:0};
+  for(var k=0;k<81;k++){
+    var d=parseInt(L.puzzle.charAt(k),10);
+    S.grid.push(d); S.fixed.push(d!==0);
+  }
+  var b=getBest(i); bestEl.textContent=b?fmt(b):'--';
+  timerEl.textContent='00:00';
+  msg.classList.remove('show');
+  renderLevels(); render(); startTick();
+}
+function startTick(){
+  if(tickId) clearInterval(tickId);
+  tickId=setInterval(function(){
+    if(S.won) return;
+    S.seconds++; timerEl.textContent=fmt(S.seconds);
+  },1000);
+}
+function renderLevels(){
+  var html='';
+  for(var i=0;i<LEVELS.length;i++)
+    html+='<button data-i="'+i+'" class="'+(S.level===i?'on':'')+'">'+LEVELS[i].name+'</button>';
+  levelsEl.innerHTML=html;
+  var btns=levelsEl.querySelectorAll?levelsEl.querySelectorAll('button'):[];
+  for(var j=0;j<btns.length;j++)(function(b){ b.onclick=function(){ select(parseInt(b.getAttribute('data-i'),10)); }; })(btns[j]);
+}
+function render(){
+  var html='',r,c,i,cls;
+  for(r=0;r<9;r++) for(c=0;c<9;c++){
+    i=r*9+c;
+    cls='cell'+(S.fixed[i]?' fixed':'')+(c%3===0?' bl':'')+(r%3===0?' bt':'')+(S.sel===i?' sel':'');
+    var v=S.grid[i], sol=parseInt(LEVELS[S.level].solution.charAt(i),10);
+    if(!S.fixed[i]&&v!==0&&v!==sol) cls+=' err';
+    html+='<div class="'+cls+'" data-i="'+i+'">'+(v===0?'':v)+'</div>';
+  }
+  boardEl.innerHTML=html;
+  var html2='';
+  for(var n=1;n<=9;n++) html2+='<button data-n="'+n+'">'+n+'</button>';
+  html2+='<button data-n="0" class="erase">⌫</button>';
+  padEl.innerHTML=html2;
+}
+function pick(i){
+  if(S.won||S.fixed[i]) return;
+  S.sel=i; render();
+}
+function input(n){
+  if(S.won||S.sel<0||S.fixed[S.sel]) return;
+  S.grid[S.sel]=n;
+  render();
+  checkWin();
+}
+function checkWin(){
+  var sol=LEVELS[S.level].solution;
+  for(var i=0;i<81;i++){
+    if(S.grid[i]===0) return false;
+    if(S.grid[i]!==parseInt(sol.charAt(i),10)) return false;
+  }
+  S.won=true;
+  if(tickId) clearInterval(tickId);
+  var prev=getBest(S.level), nb=false;
+  if(!prev||S.seconds<prev){ try{localStorage.setItem(bestKey(S.level),String(S.seconds));}catch(e){} nb=true; }
+  bestEl.textContent=fmt(S.seconds);
+  msgSub.innerHTML='「'+LEVELS[S.level].name+'」用时 <b>'+fmt(S.seconds)+'</b>'+(nb?'<br>🏆 新纪录！':'<br>最快纪录 '+fmt(getBest(S.level)||S.seconds));
+  nextBtn.style.display=(S.level<LEVELS.length-1)?'':'none';
+  msg.classList.add('show');
+  return true;
+}
+boardEl.addEventListener('click',function(e){
+  var el=e.target&&e.target.closest?e.target.closest('.cell'):null;
+  if(!el) return;
+  pick(parseInt(el.getAttribute('data-i'),10));
+});
+padEl.addEventListener('click',function(e){
+  var el=e.target&&e.target.closest?e.target.closest('button'):null;
+  if(!el) return;
+  input(parseInt(el.getAttribute('data-n'),10));
+});
+document.addEventListener('keydown',function(e){
+  if(e.key>='1'&&e.key<='9') input(parseInt(e.key,10));
+  else if(e.key==='Backspace'||e.key==='0'||e.key==='Delete'){ input(0); if(e.key==='Backspace') e.preventDefault(); }
+});
+document.getElementById('restart').onclick=function(){ select(S.level); };
+document.getElementById('again').onclick=function(){ select(S.level); };
+nextBtn.onclick=function(){ if(S.level<LEVELS.length-1) select(S.level+1); };
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+select(0);
+
+window.__test={
+  select:select, pick:pick, input:input,
+  grid:function(){ return S.grid.slice(); },
+  errCells:function(){
+    var sol=LEVELS[S.level].solution, out=[];
+    for(var i=0;i<81;i++) if(!S.fixed[i]&&S.grid[i]!==0&&S.grid[i]!==parseInt(sol.charAt(i),10)) out.push(i);
+    return out;
+  },
+  won:function(){ return S.won; },
+  seconds:function(){ return S.seconds; },
+  levels:function(){ return LEVELS.map(function(L){ return {name:L.name,puzzle:L.puzzle,solution:L.solution}; }); },
+  setSeconds:function(s){ S.seconds=s; }
+};
+})();
+</script>
+</body>
+</html>

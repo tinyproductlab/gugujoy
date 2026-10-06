@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>乒乓对战 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="乒乓对战：谷谷乐园出品的街机小游戏，竖版球桌更适合手机！守住底线，先到 5 分赢下 AI。触控鼠标键盘都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{display:block;width:100%;border-radius:8px;background:#FFF8E7}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.88);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.7}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🏓 乒乓对战</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="ps">0</div><div class="label">你</div></div>
+<div class="score-box"><div class="num" id="as">0</div><div class="label">AI</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">竖版球桌！你在 <b>下方</b>，守住底线把球打回去，先到 <b>5 分</b>获胜。</p>
+<button class="restart" id="restart">再来一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="440" height="600"></canvas>
+<div class="msg" id="msg"><p id="msgText">🏆 你赢啦！</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>手机手指在球桌上左右滑动、电脑移动鼠标或按 ← → 键，控制底部挡板左右移动接球。球打到挡板边缘会改变角度，AI 偶尔也会失误哦。先拿到 5 分的一方获胜！</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var W=440,H=600,WIN=5;
+var cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+var psEl=document.getElementById('ps'),asEl=document.getElementById('as');
+var msg=document.getElementById('msg'),msgText=document.getElementById('msgText'),msgSub=document.getElementById('msgSub');
+var S=null;
+function reset(){
+  S={px:W/2,ax:W/2,ps:0,as:0,over:false,winner:null,
+     ball:{x:W/2,y:H/2,vx:0,vy:0,r:9},
+     serveT:0,serveDir:1,aiErr:0,aiT:0,keyL:false,keyR:false,ptrX:-1};
+  psEl.textContent='0'; asEl.textContent='0';
+  msg.classList.remove('show');
+  serve();
+}
+function serve(){
+  // 发球：球回中场，朝上/下轮流发出
+  S.ball.x=W/2; S.ball.y=H/2;
+  S.ball.vx=(Math.random()<0.5?-1:1)*140;
+  S.ball.vy=300*S.serveDir;
+  S.serveDir*=-1;
+  S.serveT=0.8; // 发球小停顿
+}
+function score(who){
+  if(who==='p'){ S.ps++; psEl.textContent=S.ps; }
+  else{ S.as++; asEl.textContent=S.as; }
+  if(S.ps>=WIN){ return end('p'); }
+  if(S.as>=WIN){ return end('a'); }
+  serve();
+}
+function end(w){
+  S.over=true; S.winner=w;
+  msgText.textContent=(w==='p'?'🏆 你赢啦！':'😅 惜败，再接再厉！');
+  msgSub.textContent='比分 '+S.ps+' : '+S.as;
+  msg.classList.add('show');
+}
+function update(dt){
+  if(S.over) return;
+  // 玩家挡板（发球停顿期间也可移动找位置）
+  var SPD=420;
+  if(S.keyL) S.px-=SPD*dt;
+  if(S.keyR) S.px+=SPD*dt;
+  if(S.ptrX>=0) S.px+=(S.ptrX-S.px)*Math.min(1,dt*18);
+  S.px=Math.max(50,Math.min(W-50,S.px));
+  if(S.serveT>0){ S.serveT-=dt; if(S.serveT>0){ moveAI(dt,true); return; } }
+  var b=S.ball;
+  // AI 挡板：追球但带随机误差，球回来时回中场
+  moveAI(dt,false);
+  // 球
+  b.x+=b.vx*dt; b.y+=b.vy*dt;
+  if(b.x<b.r){ b.x=b.r; b.vx=Math.abs(b.vx); }
+  if(b.x>W-b.r){ b.x=W-b.r; b.vx=-Math.abs(b.vx); }
+  var py=H-28, ay=28, pw=110;
+  // 玩家挡板碰撞（球向下）
+  if(b.vy>0&&b.y+b.r>=py-7&&b.y+b.r<=py+16&&Math.abs(b.x-S.px)<=pw/2+b.r){
+    bounce(S.px,pw,1);
+  }
+  // AI 挡板碰撞（球向上）
+  if(b.vy<0&&b.y-b.r<=ay+7&&b.y-b.r>=ay-16&&Math.abs(b.x-S.ax)<=pw/2+b.r){
+    bounce(S.ax,pw,-1);
+  }
+  if(b.y<-20) score('p');
+  else if(b.y>H+20) score('a');
+}
+function moveAI(dt,hold){
+  S.aiT-=dt;
+  if(S.aiT<=0){ S.aiT=0.7; S.aiErr=(Math.random()*2-1)*46; }
+  var target;
+  if(hold||S.ball.vy>0) target=W/2+S.aiErr*0.3; // 球打向玩家时 AI 回中场附近
+  else target=S.ball.x+S.aiErr;
+  var sp=270,dx=target-S.ax;
+  if(Math.abs(dx)>sp*dt) S.ax+=dx>0?sp*dt:-sp*dt;
+  else S.ax=target;
+  S.ax=Math.max(55,Math.min(W-55,S.ax));
+}
+function bounce(px,pw,dir){
+  // dir=1 玩家把球打向上，dir=-1 AI 把球打向下
+  var b=S.ball,off=(b.x-px)/(pw/2);
+  off=Math.max(-1,Math.min(1,off));
+  var sp=Math.min(560,Math.hypot(b.vx,b.vy)*1.045+12);
+  b.vx=off*sp*0.75;
+  b.vy=(dir===1?-1:1)*Math.sqrt(Math.max(0,sp*sp-b.vx*b.vx));
+  b.y=(dir===1?H-28:28)+(dir===1?-1:1)*(b.r+8);
+}
+function draw(){
+  ctx.fillStyle='#FFF8E7'; ctx.fillRect(0,0,W,H);
+  // 中线
+  ctx.strokeStyle='rgba(217,122,18,.35)'; ctx.lineWidth=3; ctx.setLineDash([12,10]);
+  ctx.beginPath(); ctx.moveTo(0,H/2); ctx.lineTo(W,H/2); ctx.stroke();
+  ctx.setLineDash([]);
+  // 中圈
+  ctx.strokeStyle='rgba(217,122,18,.25)';
+  ctx.beginPath(); ctx.arc(W/2,H/2,52,0,7); ctx.stroke();
+  // AI 挡板
+  paddle(S.ax,28,'#8A6B58');
+  ctx.fillStyle='#8A6B58'; ctx.font='13px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('🤖 AI',S.ax,52);
+  // 玩家挡板
+  paddle(S.px,H-28,'#D97A12');
+  ctx.fillStyle='#D97A12';
+  ctx.fillText('😺 你',S.px,H-58);
+  // 球
+  if(!(S.serveT>0)){
+    ctx.fillStyle='#F0902A';
+    ctx.beginPath(); ctx.arc(S.ball.x,S.ball.y,S.ball.r,0,7); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(S.ball.x-3,S.ball.y-3,3,0,7); ctx.fill();
+  } else {
+    ctx.fillStyle='#B08D6E'; ctx.font='15px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('准备发球…',W/2,H/2-30);
+  }
+}
+function paddle(x,y,color){
+  var w=110,h=14;
+  ctx.fillStyle=color;
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x-w/2,y-h/2,w,h,7); ctx.fill(); }
+  else{ ctx.fillRect(x-w/2,y-h/2,w,h); }
+}
+var last=0;
+function loop(t){
+  var dt=Math.min(0.05,(t-last)/1000||0.016); last=t;
+  update(dt); draw();
+  if(!S.over) window.requestAnimationFrame(loop);
+}
+function canvasX(e){
+  var r=cv.getBoundingClientRect?cv.getBoundingClientRect():{left:0,width:W};
+  var cx=(e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX);
+  return (cx-r.left)/r.width*W;
+}
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('pointermove',function(e){ S.ptrX=canvasX(e); });
+wrap.addEventListener('pointerdown',function(e){ S.ptrX=canvasX(e); });
+wrap.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+document.addEventListener('keydown',function(e){
+  if(e.keyCode===37||e.keyCode===65){ S.keyL=true; e.preventDefault(); }
+  if(e.keyCode===39||e.keyCode===68){ S.keyR=true; e.preventDefault(); }
+});
+document.addEventListener('keyup',function(e){
+  if(e.keyCode===37||e.keyCode===65) S.keyL=false;
+  if(e.keyCode===39||e.keyCode===68) S.keyR=false;
+});
+document.getElementById('restart').onclick=function(){ reset(); window.requestAnimationFrame(loop); };
+document.getElementById('again').onclick=function(){ reset(); window.requestAnimationFrame(loop); };
+reset();
+window.requestAnimationFrame(loop);
+
+window.__test={
+  reset:reset, update:update,
+  state:function(){ return {ps:S.ps,as:S.as,over:S.over,winner:S.winner,
+    px:S.px,ax:S.ax,ball:{x:S.ball.x,y:S.ball.y,vx:S.ball.vx,vy:S.ball.vy}}; },
+  setBall:function(x,y,vx,vy){ S.ball.x=x;S.ball.y=y;S.ball.vx=vx;S.ball.vy=vy;S.serveT=0; },
+  setAI:function(x){ S.ax=x; },
+  setPlayer:function(x){ S.px=x; S.ptrX=-1; },
+  key:function(l,r){ S.keyL=l; S.keyR=r; },
+  W:W, H:H
+};
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>扫雷 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="扫雷：谷谷乐园出品的经典益智小游戏，9x9 棋盘 10 颗雷，点开格子、插旗排雷，手机电脑都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.hud{display:flex;gap:8px}
+.hud .box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 14px;text-align:center;min-width:76px}
+.hud .num{font-size:20px;font-weight:800}
+.hud .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6;flex:1 1 200px}
+.btnrow{display:flex;gap:8px}
+button.act{border:0;border-radius:999px;padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer}
+#restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;box-shadow:0 6px 16px rgba(240,144,42,.35)}
+#flagMode{background:#fff;color:#8A6B58;border:2px solid #F3D9B8}
+#flagMode.on{background:#FFE3B8;border-color:#F0902A;color:#D97A12}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+#board{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
+.cell{aspect-ratio:1;border-radius:6px;background:#FFF8E7;display:flex;align-items:center;justify-content:center;
+font-weight:800;font-size:18px;cursor:pointer;box-shadow:inset 0 -3px 0 rgba(217,122,18,.15)}
+.cell.open{background:#fff;box-shadow:inset 0 0 0 1px #F3D9B8;cursor:default}
+.cell.boom{background:#E4572E;color:#fff}
+.cell.flagged{color:#D97A12}
+.n1{color:#2E86E4}.n2{color:#2E9E5B}.n3{color:#E4572E}.n4{color:#7B5CD6}
+.n5{color:#C98A12}.n6{color:#1FA3A3}.n7{color:#5C3D2E}.n8{color:#8A8A8A}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.9);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">💣 扫雷</h1>
+<div class="hud">
+<div class="box"><div class="num" id="mineCount">10</div><div class="label">剩余雷</div></div>
+<div class="box"><div class="num" id="timer">0</div><div class="label">秒</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">9×9 棋盘藏着 <b>10 颗雷</b>，点开安全格，数字告诉你周围有几颗雷。</p>
+<div class="btnrow">
+<button class="act" id="flagMode">🚩 插旗</button>
+<button class="act" id="restart">新开一局</button>
+</div>
+</div>
+<div class="game-wrap" id="wrap">
+<div id="board"></div>
+<div class="msg" id="msg"><p id="msgText"></p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>点按翻开格子；数字表示周围 8 格中的地雷数。手机点右上角「🚩 插旗」切换插旗模式再点按，或长按格子插旗；电脑右键插旗。翻开所有安全格即胜利，点到雷就输了。第一次点击必定安全。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var N=9, MINES=10;
+var board=document.getElementById('board'), mineEl=document.getElementById('mineCount'),
+    timerEl=document.getElementById('timer'), msg=document.getElementById('msg'),
+    msgText=document.getElementById('msgText'), msgSub=document.getElementById('msgSub'),
+    flagBtn=document.getElementById('flagMode');
+var cells=[], mines=[], opened=0, flags=0, over=false, won=false, started=false,
+    flagMode=false, timerId=null, secs=0, best=null;
+try{ best=JSON.parse(localStorage.getItem('gugujoy_mine_best')||'null'); }catch(e){}
+
+function reset(){
+  board.innerHTML=''; cells=[]; mines=[]; opened=0; flags=0;
+  over=false; won=false; started=false; secs=0;
+  clearInterval(timerId); timerEl.textContent='0'; mineEl.textContent=MINES;
+  msg.classList.remove('show');
+  for(var i=0;i<N*N;i++){
+    (function(i){
+      var d=document.createElement('div'); d.className='cell'; d.dataset.i=i;
+      d.addEventListener('click',function(){onTap(i);});
+      d.addEventListener('contextmenu',function(e){e.preventDefault();toggleFlag(i);});
+      var lt=null;
+      d.addEventListener('touchstart',function(){lt=setTimeout(function(){toggleFlag(i);lt=null;},450);},{passive:true});
+      d.addEventListener('touchend',function(){if(lt){clearTimeout(lt);lt=null;}});
+      d.addEventListener('touchmove',function(){if(lt){clearTimeout(lt);lt=null;}},{passive:true});
+      board.appendChild(d); cells.push({el:d,mine:false,open:false,flag:false,n:0});
+    })(i);
+  }
+}
+function neighbors(i){
+  var x=i%N, y=(i/N)|0, r=[];
+  for(var dy=-1;dy<=1;dy++)for(var dx=-1;dx<=1;dx++){
+    if(!dx&&!dy)continue; var nx=x+dx, ny=y+dy;
+    if(nx>=0&&nx<N&&ny>=0&&ny<N) r.push(ny*N+nx);
+  }
+  return r;
+}
+function placeMines(safe){
+  var pool=[];
+  for(var i=0;i<N*N;i++) if(i!==safe) pool.push(i);
+  for(var m=0;m<MINES;m++){
+    var k=(Math.random()*pool.length)|0, idx=pool.splice(k,1)[0];
+    cells[idx].mine=true; mines.push(idx);
+  }
+  cells.forEach(function(c,i){
+    var n=0; neighbors(i).forEach(function(j){if(cells[j].mine)n++;});
+    c.n=n;
+  });
+}
+function startTimer(){
+  started=true;
+  timerId=setInterval(function(){secs++;timerEl.textContent=secs;},1000);
+}
+function onTap(i){
+  if(over||won) return;
+  var c=cells[i];
+  if(c.open) return;
+  if(flagMode){ toggleFlag(i); return; }
+  if(c.flag) return;
+  if(!started){ placeMines(i); startTimer(); }
+  if(c.mine) return boom(i);
+  open(i);
+  checkWin();
+}
+function toggleFlag(i){
+  if(over||won) return;
+  var c=cells[i];
+  if(c.open) return;
+  c.flag=!c.flag; flags+=c.flag?1:-1;
+  c.el.classList.toggle('flagged',c.flag);
+  c.el.textContent=c.flag?'🚩':'';
+  mineEl.textContent=MINES-flags;
+}
+function open(i){
+  var c=cells[i];
+  if(c.open||c.flag) return;
+  c.open=true; opened++;
+  c.el.classList.add('open');
+  if(c.n>0){ c.el.textContent=c.n; c.el.classList.add('n'+c.n); }
+  else{
+    c.el.textContent='';
+    neighbors(i).forEach(open);
+  }
+}
+function boom(i){
+  over=true; clearInterval(timerId);
+  cells[i].el.classList.add('boom'); cells[i].el.textContent='💥';
+  mines.forEach(function(j){
+    if(!cells[j].flag){cells[j].el.textContent='💣';}
+  });
+  msgText.textContent='💥 踩到雷啦！';
+  msgSub.textContent='坚持了 '+secs+' 秒，再接再厉';
+  msg.classList.add('show');
+}
+function checkWin(){
+  if(opened===N*N-MINES){
+    won=true; clearInterval(timerId);
+    mines.forEach(function(j){ if(!cells[j].flag){cells[j].el.textContent='🚩';} });
+    var isBest=false;
+    if(best===null||secs<best){best=secs;isBest=true;
+      try{localStorage.setItem('gugujoy_mine_best',JSON.stringify(best));}catch(e){}}
+    msgText.textContent='🎉 排雷成功！';
+    msgSub.textContent='用时 '+secs+' 秒'+(isBest?' · 新纪录！':(best!==null?' · 最快 '+best+' 秒':''));
+    msg.classList.add('show');
+  }
+}
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+flagBtn.onclick=function(){flagMode=!flagMode;flagBtn.classList.toggle('on',flagMode);};
+// expose for tests
+window.__mine={reset:reset,cells:function(){return cells;},onTap:onTap,toggleFlag:toggleFlag,
+  state:function(){return{opened:opened,over:over,won:won,flags:flags,mines:mines.slice()};}};
+reset();
+})();
+</script>
+</body>
+</html>

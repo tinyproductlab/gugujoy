@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>推箱子 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="推箱子：谷谷乐园出品的经典益智游戏，5 个手工关卡，把所有箱子推进目标点！手机滑动、电脑方向键都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.levels{display:flex;gap:8px;margin-bottom:10px}
+.levels button{flex:1;border:2px solid #F3D9B8;background:#fff;border-radius:10px;padding:8px 0;font-size:15px;font-weight:700;cursor:pointer;color:#8A6B58}
+.levels button.on{background:#F0902A;border-color:#F0902A;color:#fff}
+.levels button.lock{opacity:.45;cursor:default}
+.board{display:grid;gap:2px;justify-content:center}
+.cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:min(7vw,30px);border-radius:6px;background:#FFFDF6;min-width:0}
+.cell.wall{background:#B07B4F;box-shadow:inset 0 -3px 0 rgba(92,61,46,.35)}
+.cell.goal{background:#FFE9C4;box-shadow:inset 0 0 0 2px #F0902A}
+.dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,54px);gap:8px;justify-content:center;margin-top:14px}
+.dpad button{border:0;border-radius:12px;background:#fff;font-size:22px;color:#D97A12;cursor:pointer;box-shadow:0 3px 0 rgba(217,122,18,.25)}
+.dpad button:active{transform:translateY(2px);box-shadow:none}
+.dpad .up{grid-column:2}.dpad .left{grid-column:1;grid-row:2}.dpad .down{grid-column:2;grid-row:2}.dpad .right{grid-column:3;grid-row:2}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.92);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.7}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;margin:0 4px}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">📦 推箱子</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="level">1</div><div class="label">关卡</div></div>
+<div class="score-box"><div class="num" id="steps">0</div><div class="label">步数</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">推动小猫，把所有 <b>📦</b> 箱子推进 <b>⭕</b> 目标点！箱子只能推不能拉，小心别推进死角。</p>
+<button class="restart" id="restart">重开本关</button>
+</div>
+<div class="game-wrap" id="wrap">
+<div class="levels" id="levels"></div>
+<div class="board" id="board"></div>
+<div class="dpad">
+<button class="up" data-d="0,-1">⬆️</button>
+<button class="left" data-d="-1,0">⬅️</button>
+<button class="down" data-d="0,1">⬇️</button>
+<button class="right" data-d="1,0">➡️</button>
+</div>
+<div class="msg" id="msg"><p id="msgText">🎉 过关啦！</p><div class="sub" id="msgSub"></div><div><button id="again">再玩一次</button><button id="next">下一关</button></div></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>手机在棋盘上滑动或点方向键推动小猫，电脑用方向键 / WASD。走一步、推一步都算 1 步。全部箱子进入目标点即过关，自动解锁下一关（进度会自动保存）。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var LEVELS=[
+{name:"第一关",map:"#####\n#@  #\n# $ #\n# . #\n#####"},
+{name:"第二关",map:"######\n#@   #\n# $$ #\n# .. #\n######"},
+{name:"第三关",map:"#######\n#@    #\n#     #\n# $$  #\n# ..  #\n#######"},
+{name:"第四关",map:"#######\n#@    #\n# $ $ #\n#     #\n# . . #\n#######"},
+{name:"第五关",map:"########\n#@     #\n# $$$  #\n#      #\n# ...  #\n########"}
+];
+var UNLOCK_KEY='gugujoy_sokoban_unlocked';
+var boardEl=document.getElementById('board'), levelsEl=document.getElementById('levels');
+var levelEl=document.getElementById('level'), stepsEl=document.getElementById('steps');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub'), nextBtn=document.getElementById('next');
+var S=null, unlocked=0;
+try{ unlocked=parseInt(localStorage.getItem(UNLOCK_KEY)||'0',10)||0; }catch(e){}
+if(unlocked>=LEVELS.length) unlocked=LEVELS.length-1;
+
+function parse(map){
+  var rows=map.split('\n'),walls={},goals={},boxes=[],player=null,w=0;
+  rows.forEach(function(row,y){
+    w=Math.max(w,row.length);
+    for(var x=0;x<row.length;x++){
+      var ch=row.charAt(x),k=x+','+y;
+      if(ch==='#') walls[k]=1;
+      if(ch==='.'||ch==='*'||ch==='+') goals[k]=1;
+      if(ch==='@'||ch==='+') player=[x,y];
+      if(ch==='$'||ch==='*') boxes.push([x,y]);
+    }
+  });
+  return {w:w,h:rows.length,walls:walls,goals:goals,player:player,boxes:boxes};
+}
+function load(i){
+  if(i>unlocked) return false;
+  var p=parse(LEVELS[i].map);
+  S={level:i,geo:p,player:p.player.slice(),boxes:p.boxes.map(function(b){return b.slice();}),steps:0,won:false};
+  levelEl.textContent=i+1; stepsEl.textContent='0';
+  msg.classList.remove('show');
+  renderLevels(); render();
+  return true;
+}
+function boxAt(x,y){
+  for(var i=0;i<S.boxes.length;i++) if(S.boxes[i][0]===x&&S.boxes[i][1]===y) return i;
+  return -1;
+}
+function move(dx,dy){
+  if(!S||S.won) return false;
+  var nx=S.player[0]+dx, ny=S.player[1]+dy, k=nx+','+ny;
+  if(S.geo.walls[k]) return false; // 撞墙
+  var bi=boxAt(nx,ny);
+  if(bi>=0){
+    var bx=nx+dx, by=ny+dy, bk=bx+','+by;
+    if(S.geo.walls[bk]||boxAt(bx,by)>=0) return false; // 推不动
+    S.boxes[bi]=[bx,by];
+  }
+  S.player=[nx,ny];
+  S.steps++; stepsEl.textContent=S.steps;
+  render();
+  checkWin();
+  return true;
+}
+function checkWin(){
+  for(var i=0;i<S.boxes.length;i++)
+    if(!S.geo.goals[S.boxes[i][0]+','+S.boxes[i][1]]) return false;
+  S.won=true;
+  if(S.level===unlocked&&unlocked<LEVELS.length-1){
+    unlocked=S.level+1;
+    try{localStorage.setItem(UNLOCK_KEY,String(unlocked));}catch(e){}
+  }
+  var last=S.level>=LEVELS.length-1;
+  msgSub.innerHTML='「'+LEVELS[S.level].name+'」用了 <b>'+S.steps+'</b> 步'+(last?'<br>🏆 全部通关，你太厉害了！':'<br>已解锁'+LEVELS[S.level+1].name+'！');
+  nextBtn.style.display=last?'none':'';
+  renderLevels();
+  msg.classList.add('show');
+  return true;
+}
+function renderLevels(){
+  var html='';
+  for(var i=0;i<LEVELS.length;i++){
+    var lock=i>unlocked;
+    html+='<button data-i="'+i+'" class="'+(S&&S.level===i?'on':'')+(lock?' lock':'')+'">'+(lock?'🔒':(i+1))+'</button>';
+  }
+  levelsEl.innerHTML=html;
+  var btns=levelsEl.querySelectorAll?levelsEl.querySelectorAll('button'):[];
+  for(var j=0;j<btns.length;j++)(function(b){
+    b.onclick=function(){ load(parseInt(b.getAttribute('data-i'),10)); };
+  })(btns[j]);
+}
+function render(){
+  var g=S.geo,html='',x,y,k,cls,ch;
+  boardEl.style.gridTemplateColumns='repeat('+g.w+',1fr)';
+  boardEl.style.maxWidth=(g.w*52)+'px';
+  boardEl.style.margin='0 auto';
+  for(y=0;y<g.h;y++) for(x=0;x<g.w;x++){
+    k=x+','+y; cls='cell'; ch='';
+    if(g.walls[k]){ cls+=' wall'; }
+    else{
+      if(g.goals[k]) cls+=' goal';
+      var bi=boxAt(x,y);
+      if(bi>=0) ch='📦';
+      else if(S.player[0]===x&&S.player[1]===y) ch='😺';
+      else if(g.goals[k]) ch='⭕';
+    }
+    html+='<div class="'+cls+'">'+ch+'</div>';
+  }
+  boardEl.innerHTML=html;
+}
+// BFS 求解器（供测试验证关卡可解）
+function solveMap(map){
+  var p=parse(map);
+  var DIRS=[[1,0],[-1,0],[0,1],[0,-1]];
+  var start=p.player[0]+','+p.player[1]+'|'+p.boxes.map(function(b){return b[0]+','+b[1];}).sort().join(';');
+  var seen={},q=[{p:p.player.slice(),b:p.boxes.map(function(x){return x.slice();}),d:0}];
+  seen[start]=1;
+  while(q.length){
+    var cur=q.shift();
+    var win=true;
+    for(var i=0;i<cur.b.length;i++) if(!p.goals[cur.b[i][0]+','+cur.b[i][1]]){win=false;break;}
+    if(win) return cur.d;
+    var bset={};
+    for(var j=0;j<cur.b.length;j++) bset[cur.b[j][0]+','+cur.b[j][1]]=j;
+    for(var d=0;d<4;d++){
+      var nx=cur.p[0]+DIRS[d][0],ny=cur.p[1]+DIRS[d][1],nk=nx+','+ny;
+      if(p.walls[nk]) continue;
+      var nb=cur.b,key;
+      if(bset[nk]!==undefined){
+        var bx=nx+DIRS[d][0],by=ny+DIRS[d][1],bk=bx+','+by;
+        if(p.walls[bk]||bset[bk]!==undefined) continue;
+        nb=cur.b.map(function(o,oi){ return oi===bset[nk]?[bx,by]:o.slice(); });
+        key=nk+'|'+nb.map(function(o){return o[0]+','+o[1];}).sort().join(';');
+      }else{
+        key=nk+'|'+cur.b.map(function(o){return o[0]+','+o[1];}).sort().join(';');
+      }
+      if(!seen[key]){ seen[key]=1; q.push({p:[nx,ny],b:nb.map(function(o){return o.slice();}),d:cur.d+1}); }
+    }
+  }
+  return -1;
+}
+var K={37:[-1,0],38:[0,-1],39:[1,0],40:[0,1],65:[-1,0],87:[0,-1],68:[1,0],83:[0,1]};
+document.addEventListener('keydown',function(e){
+  var d=K[e.keyCode]; if(!d) return; e.preventDefault();
+  move(d[0],d[1]);
+});
+var dpad=document.querySelectorAll?document.querySelectorAll('.dpad button'):[];
+for(var di=0;di<dpad.length;di++)(function(b){
+  b.addEventListener('click',function(){
+    var d=b.getAttribute('data-d').split(',');
+    move(parseInt(d[0],10),parseInt(d[1],10));
+  });
+})(dpad[di]);
+document.getElementById('restart').onclick=function(){ load(S.level); };
+document.getElementById('again').onclick=function(){ load(S.level); };
+nextBtn.onclick=function(){ if(S.level<LEVELS.length-1) load(S.level+1); };
+var wrap=document.getElementById('wrap'),sx=0,sy=0;
+wrap.addEventListener('touchstart',function(e){var t=e.changedTouches[0];sx=t.clientX;sy=t.clientY;},{passive:true});
+wrap.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});
+wrap.addEventListener('touchend',function(e){
+  var t=e.changedTouches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+  if(Math.abs(dx)<24&&Math.abs(dy)<24) return;
+  if(Math.abs(dx)>Math.abs(dy)) move(dx>0?1:-1,0); else move(0,dy>0?1:-1);
+},{passive:true});
+load(0);
+
+window.__test={
+  load:load, move:move, solveMap:solveMap,
+  steps:function(){ return S.steps; },
+  won:function(){ return S.won; },
+  level:function(){ return S.level; },
+  player:function(){ return S.player.slice(); },
+  boxes:function(){ return S.boxes.map(function(b){return b.slice();}); },
+  maps:function(){ return LEVELS.map(function(L){return L.map;}); },
+  unlocked:function(){ return unlocked; }
+};
+})();
+</script>
+</body>
+</html>

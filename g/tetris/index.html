@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>俄罗斯方块 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="俄罗斯方块：谷谷乐园出品的经典益智游戏，旋转拼合、消行冲分，等级越高下落越快！手机点按钮、电脑用方向键都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0}
+h1.title{font-size:30px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 12px;text-align:center;min-width:70px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none;display:flex;justify-content:center}
+canvas{display:block;border-radius:8px;background:#FFF8E7}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.92);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.6}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+.controls button{border:2px solid #F3D9B8;border-radius:14px;background:#fff;font-size:30px;padding:12px 0;cursor:pointer;color:#D97A12;touch-action:manipulation;box-shadow:0 4px 10px rgba(240,144,42,.12)}
+.controls button:active{background:#FFE3B8}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🧱 俄罗斯方块</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">得分</div></div>
+<div class="score-box"><div class="num" id="level">1</div><div class="label">等级</div></div>
+<div class="score-box"><div class="num" id="best">0</div><div class="label">最高</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">旋转拼合，填满一行即可消除！每消 10 行升 1 级，等级越高下落越快。</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<canvas id="cv" width="240" height="480"></canvas>
+<div class="msg" id="msg"><p id="msgText">😵 顶到头啦！</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="controls">
+<button id="btnL" aria-label="左移">←</button><button id="btnR" aria-label="右移">→</button><button id="btnD" aria-label="下移">↓</button><button id="btnRot" aria-label="旋转">⟳</button>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>手机点棋盘下方的大按钮移动 / 旋转方块；电脑用 ← → ↓ 移动、↑ 旋转、空格硬降（直接落到底）。一次消 1 / 2 / 3 / 4 行得 100 / 300 / 500 / 800 × 等级分。方块堆到顶游戏结束。</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var COLS=10, ROWS=20, CELL=24;
+var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+var scoreEl=document.getElementById('score'), levelEl=document.getElementById('level'), bestEl=document.getElementById('best');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub');
+// 7 种标准方块：I/J/L/O/S/T/Z（独立实现的形状矩阵）
+var SHAPES=[
+ {c:'#F0902A', m:[[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]]},
+ {c:'#C98A3B', m:[[1,0,0],[1,1,1],[0,0,0],[0,0,0]]},
+ {c:'#D97A12', m:[[0,0,1],[1,1,1],[0,0,0],[0,0,0]]},
+ {c:'#F5C542', m:[[1,1],[1,1]]},
+ {c:'#E0704A', m:[[0,1,1],[1,1,0],[0,0,0],[0,0,0]]},
+ {c:'#A9713F', m:[[0,1,0],[1,1,1],[0,0,0],[0,0,0]]},
+ {c:'#C65B47', m:[[1,1,0],[0,1,1],[0,0,0],[0,0,0]]}
+];
+var S=null, timer=null, best=0, bag=[], forcedQueue=null;
+try{ best=parseInt(localStorage.getItem('gugujoy_tetris_best')||'0',10)||0; }catch(e){}
+bestEl.textContent=best;
+
+function emptyBoard(){ var b=[],r; for(r=0;r<ROWS;r++) b.push([0,0,0,0,0,0,0,0,0,0]); return b; }
+function rotMat(m){ var n=m.length,o=[],r,c; for(r=0;r<n;r++){ o.push([]); for(c=0;c<n;c++) o[r].push(m[n-1-c][r]); } return o; }
+function collides(mat,x,y){
+  for(var r=0;r<mat.length;r++) for(var c=0;c<mat[r].length;c++){
+    if(!mat[r][c]) continue;
+    var bx=x+c, by=y+r;
+    if(bx<0||bx>=COLS||by>=ROWS) return true;
+    if(by>=0&&S.board[by][bx]) return true;
+  }
+  return false;
+}
+function refillBag(){ bag=[0,1,2,3,4,5,6]; for(var i=6;i>0;i--){ var j=(Math.random()*(i+1))|0, t=bag[i]; bag[i]=bag[j]; bag[j]=t; } }
+function nextType(){ if(forcedQueue&&forcedQueue.length) return forcedQueue.shift(); if(!bag.length) refillBag(); return bag.shift(); }
+function spawn(){
+  var t=nextType(), mat=SHAPES[t].m;
+  S.cur={t:t, mat:mat, x:3, y:(mat.length===4?-1:0)};
+  if(collides(mat,S.cur.x,S.cur.y)) die();
+}
+function reset(){
+  S={board:emptyBoard(), cur:null, score:0, lines:0, level:1, alive:true, speed:600};
+  bag=[];
+  scoreEl.textContent='0'; levelEl.textContent='1';
+  msg.classList.remove('show');
+  spawn(); restartLoop(); draw();
+}
+function restartLoop(){ if(timer) clearInterval(timer); timer=setInterval(tick,S.speed); }
+function move(dx,dy){
+  if(!S.alive||!S.cur) return false;
+  if(!collides(S.cur.mat,S.cur.x+dx,S.cur.y+dy)){ S.cur.x+=dx; S.cur.y+=dy; draw(); return true; }
+  return false;
+}
+function rotate(){
+  if(!S.alive||!S.cur) return false;
+  var m=rotMat(S.cur.mat);
+  var kicks=[[0,0],[-1,0],[1,0],[-2,0],[2,0],[0,-1]]; // 简易踢墙
+  for(var i=0;i<kicks.length;i++){
+    if(!collides(m,S.cur.x+kicks[i][0],S.cur.y+kicks[i][1])){
+      S.cur.mat=m; S.cur.x+=kicks[i][0]; S.cur.y+=kicks[i][1]; draw(); return true;
+    }
+  }
+  return false;
+}
+function hardDrop(){
+  if(!S.alive||!S.cur) return;
+  while(!collides(S.cur.mat,S.cur.x,S.cur.y+1)) S.cur.y++;
+  lock(); draw();
+}
+function tick(){
+  if(!S.alive||!S.cur) return;
+  if(!collides(S.cur.mat,S.cur.x,S.cur.y+1)) S.cur.y++;
+  else lock();
+  draw();
+}
+function lock(){
+  var cur=S.cur, mat=cur.mat, r, c;
+  for(r=0;r<mat.length;r++) for(c=0;c<mat[r].length;c++){
+    if(mat[r][c]){ var by=cur.y+r, bx=cur.x+c; if(by>=0) S.board[by][bx]=SHAPES[cur.t].c; }
+  }
+  S.cur=null;
+  clearLines();
+  if(S.alive) spawn();
+}
+function clearLines(){
+  var cleared=0, nb=[], r, c;
+  for(r=0;r<ROWS;r++){
+    var full=true;
+    for(c=0;c<COLS;c++) if(!S.board[r][c]){ full=false; break; }
+    if(full) cleared++; else nb.push(S.board[r]);
+  }
+  while(nb.length<ROWS) nb.unshift([0,0,0,0,0,0,0,0,0,0]);
+  S.board=nb;
+  cleared=Math.min(cleared,4); // 单次锁定最多补满 4 行，防御性保护
+  if(cleared>0){
+    S.score+=[0,100,300,500,800][cleared]*S.level;
+    S.lines+=cleared;
+    var nl=((S.lines/10)|0)+1;
+    if(nl>S.level){ S.level=nl; S.speed=Math.max(80,600-(nl-1)*60); restartLoop(); }
+    scoreEl.textContent=S.score; levelEl.textContent=S.level;
+  }
+}
+function die(){
+  S.alive=false;
+  if(timer){ clearInterval(timer); timer=null; }
+  if(S.score>best){ best=S.score; try{ localStorage.setItem('gugujoy_tetris_best',String(best)); }catch(e){} }
+  bestEl.textContent=best;
+  msgSub.textContent='得分 '+S.score+' · 等级 '+S.level+' · 消除 '+S.lines+' 行 · 历史最高 '+best;
+  msg.classList.add('show'); draw();
+}
+function drawMat(mat,x,y,color){
+  ctx.fillStyle=color;
+  for(var r=0;r<mat.length;r++) for(var c=0;c<mat[r].length;c++){
+    if(mat[r][c]&&y+r>=0){ roundRect((x+c)*CELL+1,(y+r)*CELL+1,CELL-2,CELL-2,5); ctx.fill(); }
+  }
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function draw(){
+  var r, c, g;
+  ctx.fillStyle='#FFF8E7'; ctx.fillRect(0,0,cv.width,cv.height);
+  for(r=0;r<ROWS;r++) for(c=0;c<COLS;c++){
+    if(S.board[r][c]){ ctx.fillStyle=S.board[r][c]; roundRect(c*CELL+1,r*CELL+1,CELL-2,CELL-2,5); ctx.fill(); }
+  }
+  if(S.cur&&S.alive){
+    var gy=S.cur.y;
+    while(!collides(S.cur.mat,S.cur.x,gy+1)) gy++;
+    ctx.globalAlpha=0.22;
+    drawMat(S.cur.mat,S.cur.x,gy,SHAPES[S.cur.t].c);
+    ctx.globalAlpha=1;
+    drawMat(S.cur.mat,S.cur.x,S.cur.y,SHAPES[S.cur.t].c);
+  }
+  ctx.strokeStyle='rgba(217,122,18,.08)'; ctx.lineWidth=1;
+  for(g=1;g<COLS;g++){ ctx.beginPath(); ctx.moveTo(g*CELL+.5,0); ctx.lineTo(g*CELL+.5,cv.height); ctx.stroke(); }
+  for(g=1;g<ROWS;g++){ ctx.beginPath(); ctx.moveTo(0,g*CELL+.5); ctx.lineTo(cv.width,g*CELL+.5); ctx.stroke(); }
+}
+
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+document.addEventListener('keydown',function(e){
+  var k=e.keyCode;
+  if(k===37||k===39||k===40||k===38||k===32) e.preventDefault();
+  if(!S.alive){ if(k===32||k===38||k===40) reset(); return; }
+  if(k===37) move(-1,0);
+  else if(k===39) move(1,0);
+  else if(k===40) move(0,1);
+  else if(k===38) rotate();
+  else if(k===32) hardDrop();
+});
+function bindBtn(id,fn){
+  document.getElementById(id).addEventListener('click',function(e){ e.preventDefault(); fn(); });
+}
+bindBtn('btnL',function(){ move(-1,0); });
+bindBtn('btnR',function(){ move(1,0); });
+bindBtn('btnD',function(){ move(0,1); });
+bindBtn('btnRot',rotate);
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchstart',function(){},{passive:true});
+wrap.addEventListener('touchmove',function(e){ e.preventDefault(); },{passive:false});
+window.__test={reset:reset,state:function(){return S;},move:move,rotate:rotate,hardDrop:hardDrop,tick:tick,
+  setQueue:function(q){ forcedQueue=q.slice(); },collides:collides,
+  stop:function(){ if(timer){ clearInterval(timer); timer=null; } }};
+reset();
+})();
+</script>
+</body>
+</html>

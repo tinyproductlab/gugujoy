@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>一笔画 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="一笔画：谷谷乐园出品的益智小游戏，一笔连完所有线条，不能重复不能断！6 个精心设计的关卡，手机电脑都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;margin:14px 0}
+h1.title{font-size:40px;font-weight:900;color:#D97A12}
+.lv-badge{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center}
+.lv-badge .num{font-size:20px;font-weight:800;color:#D97A12}
+.lv-badge .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+button.act{border:0;border-radius:999px;padding:10px 22px;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+#levelsBtn{background:#fff;color:#8A6B58;border:2px solid #F3D9B8;box-shadow:none;margin-right:8px}
+.game-wrap{position:relative;background:#fff;border:3px solid #FFE3B8;border-radius:14px;padding:8px;touch-action:none;user-select:none;-webkit-user-select:none}
+svg{display:block;width:100%;height:auto;touch-action:none}
+.edge{stroke:#EAD9C2;stroke-width:7;stroke-linecap:round}
+.edge.done{stroke:#F0902A}
+.edge.hint{stroke:#FFD9A8}
+.node{fill:#FFF8E7;stroke:#C89B6D;stroke-width:3;cursor:pointer}
+.node.cur{fill:#F0902A;stroke:#D97A12}
+.node.start{stroke:#2E9E5B;stroke-width:4}
+.progress{margin-top:10px;text-align:center;font-size:14px;color:#8A6B58}
+.progress b{color:#D97A12}
+.msg{display:none;position:absolute;inset:8px;background:rgba(255,247,236,.92);border-radius:11px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58}
+.msg .row{display:flex;gap:10px}
+.msg button{border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.msg button.ghost{background:#fff;color:#5C3D2E;border:2px solid #F3D9B8}
+.lvgrid{display:none;position:absolute;inset:8px;background:rgba(255,247,236,.97);border-radius:11px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.lvgrid.show{display:flex}
+.lvgrid h3{font-size:22px}
+.lvgrid .btns{display:grid;grid-template-columns:repeat(3,86px);gap:12px}
+.lvgrid .btns button{border:2px solid #F3D9B8;background:#fff;border-radius:14px;padding:14px 0;font-size:16px;font-weight:800;color:#5C3D2E;cursor:pointer}
+.lvgrid .btns button.done{background:#E8F7EE;border-color:#2E9E5B;color:#2E9E5B}
+.lvgrid .btns button.lock{opacity:.4;cursor:default}
+.lvgrid .btns button.cur{border-color:#F0902A;box-shadow:0 0 0 3px #FFE3B8}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">✏️ 一笔画</h1>
+<div class="lv-badge"><div class="num" id="lvNum">1</div><div class="label" id="lvName">正方形</div></div>
+</div>
+<div class="above">
+<p class="intro">一笔连完<b>所有线条</b>，不能重复、不能断开！</p>
+<div><button class="act" id="levelsBtn">选关</button><button class="act" id="resetBtn">重画</button></div>
+</div>
+<div class="game-wrap" id="wrap">
+<svg id="svg" viewBox="0 0 300 300"></svg>
+<div class="progress">已连 <b id="doneCount">0</b> / <span id="totalCount">0</span> 条线</div>
+<div class="msg" id="msg"><p>🎉 过关啦！</p><div class="sub" id="msgSub"></div>
+<div class="row"><button class="ghost" id="replayBtn">重画</button><button id="nextBtn">下一关 →</button></div></div>
+<div class="lvgrid" id="lvgrid"><h3>选择关卡</h3><div class="btns" id="lvBtns"></div>
+<button class="act" id="closeLv" style="background:#fff;color:#8A6B58;border:2px solid #F3D9B8;box-shadow:none">关闭</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>从任意一个圆点开始，按住拖动（手机）或按住鼠标左键（电脑），经过每条线且每条线只能走一次。小技巧：先找只有奇数条线连着的点（1 个或 3 个），从那里起笔更容易成功！</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+// levels: nodes [x,y], edges [a,b] — all Eulerian (0 or 2 odd-degree nodes)
+var LEVELS=[
+ {name:'正方形', nodes:[[60,60],[240,60],[240,240],[60,240]], edges:[[0,1],[1,2],[2,3],[3,0]]},
+ {name:'小房子', nodes:[[80,230],[220,230],[220,130],[80,130],[150,55]], edges:[[0,1],[1,2],[2,3],[3,0],[3,4],[4,2]]},
+ {name:'对角方块', nodes:[[60,60],[240,60],[240,240],[60,240]], edges:[[0,1],[1,2],[2,3],[3,0],[0,2]]},
+ {name:'日', nodes:[[90,55],[210,55],[210,150],[90,150],[210,245],[90,245]], edges:[[0,1],[1,2],[2,3],[3,0],[2,4],[4,5],[5,3]]},
+ {name:'蝴蝶结', nodes:[[70,70],[70,230],[150,150],[230,70],[230,230]], edges:[[0,1],[1,2],[2,0],[2,3],[3,4],[4,2]]},
+ {name:'五角星', nodes:[[150,40],[235,205],[95,95],[205,95],[65,205]], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[3,0]]}
+];
+// fix: 五角星 star polygon {5/2}: order 0->2->4->1->3->0 ; use those 5 edges + inner? keep simple: star edges only
+LEVELS[5]={name:'五角星', nodes:[[150,40],[235,205],[95,95],[205,95],[65,205]],
+  edges:[[0,2],[2,4],[4,1],[1,3],[3,0]]};
+var svg=document.getElementById('svg'), doneEl=document.getElementById('doneCount'),
+    totalEl=document.getElementById('totalCount'), lvNum=document.getElementById('lvNum'),
+    lvName=document.getElementById('lvName'), msg=document.getElementById('msg'),
+    msgSub=document.getElementById('msgSub'), nextBtn=document.getElementById('nextBtn'),
+    lvgrid=document.getElementById('lvgrid'), lvBtns=document.getElementById('lvBtns');
+var NS='http://www.w3.org/2000/svg';
+var lv=0, unlocked=0, path=[], used={}, drawing=false;
+try{ unlocked=parseInt(localStorage.getItem('gugujoy_onestroke_lv')||'0',10)||0; }catch(e){}
+unlocked=Math.max(0,Math.min(LEVELS.length-1,unlocked));
+
+function ekey(a,b){return a<b?a+'-'+b:b+'-'+a;}
+function neighbors(i){
+  var r=[];
+  LEVELS[lv].edges.forEach(function(e){ if(e[0]===i)r.push(e[1]); else if(e[1]===i)r.push(e[0]); });
+  return r;
+}
+function render(){
+  var L=LEVELS[lv];
+  svg.innerHTML='';
+  lvNum.textContent=lv+1; lvName.textContent=L.name;
+  totalEl.textContent=L.edges.length;
+  doneEl.textContent=Object.keys(used).length;
+  L.edges.forEach(function(e){
+    var l=document.createElementNS(NS,'line');
+    l.setAttribute('x1',L.nodes[e[0]][0]);l.setAttribute('y1',L.nodes[e[0]][1]);
+    l.setAttribute('x2',L.nodes[e[1]][0]);l.setAttribute('y2',L.nodes[e[1]][1]);
+    l.setAttribute('class','edge'+(used[ekey(e[0],e[1])]?' done':''));
+    svg.appendChild(l);
+  });
+  L.nodes.forEach(function(n,i){
+    var c=document.createElementNS(NS,'circle');
+    c.setAttribute('cx',n[0]);c.setAttribute('cy',n[1]);c.setAttribute('r',13);
+    var cls='node';
+    if(path.length&&path[path.length-1]===i)cls+=' cur';
+    if(path.length&&path[0]===i)cls+=' start';
+    c.setAttribute('class',cls);
+    svg.appendChild(c);
+  });
+}
+function startLevel(i){
+  lv=i; path=[]; used={}; drawing=false;
+  msg.classList.remove('show'); lvgrid.classList.remove('show');
+  render();
+}
+function svgPos(e){
+  var r=svg.getBoundingClientRect();
+  var cx=(e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX);
+  var cy=(e.touches&&e.touches[0]?e.touches[0].clientY:e.clientY);
+  return [(cx-r.left)/r.width*300,(cy-r.top)/r.height*300];
+}
+function nearNode(p){
+  var L=LEVELS[lv], best=-1, bd=34;
+  L.nodes.forEach(function(n,i){
+    var d=Math.hypot(n[0]-p[0],n[1]-p[1]);
+    if(d<bd){bd=d;best=i;}
+  });
+  return best;
+}
+function tryStep(i){
+  if(i<0||!drawing) return;
+  var cur=path[path.length-1];
+  if(i===cur) return;
+  var k=ekey(cur,i);
+  if(used[k]) return;
+  if(neighbors(cur).indexOf(i)<0) return;
+  used[k]=1; path.push(i); render();
+  if(Object.keys(used).length===LEVELS[lv].edges.length) win();
+}
+function win(){
+  drawing=false;
+  var last=LEVELS.length-1;
+  if(lv<last && lv===unlocked){ unlocked=lv+1;
+    try{localStorage.setItem('gugujoy_onestroke_lv',String(unlocked));}catch(e){} }
+  msgSub.textContent='第 '+(lv+1)+' 关「'+LEVELS[lv].name+'」完成！';
+  nextBtn.style.display=lv<last?'':'none';
+  setTimeout(function(){msg.classList.add('show');},350);
+}
+svg.addEventListener('pointerdown',function(e){
+  e.preventDefault();
+  var i=nearNode(svgPos(e));
+  if(i>=0){ path=[i]; used={}; drawing=true; msg.classList.remove('show'); render(); }
+});
+svg.addEventListener('pointermove',function(e){
+  if(!drawing)return; e.preventDefault();
+  tryStep(nearNode(svgPos(e)));
+});
+['pointerup','pointercancel','pointerleave'].forEach(function(t){
+  svg.addEventListener(t,function(){drawing=false;});
+});
+document.getElementById('resetBtn').onclick=function(){startLevel(lv);};
+document.getElementById('replayBtn').onclick=function(){startLevel(lv);};
+nextBtn.onclick=function(){ if(lv<LEVELS.length-1) startLevel(lv+1); };
+document.getElementById('levelsBtn').onclick=function(){
+  lvBtns.innerHTML='';
+  LEVELS.forEach(function(L,i){
+    var b=document.createElement('button');
+    var locked=i>unlocked;
+    b.textContent=locked?'🔒':(i<unlocked||(i===unlocked&&false)?'✓':(i+1));
+    if(i<unlocked)b.textContent='✓ '+(i+1);
+    b.className=(i<unlocked?'done ':'')+(locked?'lock':'')+(i===lv?'cur':'');
+    if(!locked)b.onclick=function(){startLevel(i);};
+    lvBtns.appendChild(b);
+  });
+  lvgrid.classList.add('show');
+};
+document.getElementById('closeLv').onclick=function(){lvgrid.classList.remove('show');};
+// expose for tests
+window.__stroke={start:startLevel, levels:LEVELS, state:function(){return{lv:lv,path:path.slice(),used:Object.keys(used).length};},
+  step:tryStep, begin:function(i){path=[i];used={};drawing=true;render();}};
+startLevel(Math.min(unlocked,LEVELS.length-1));
+})();
+</script>
+</body>
+</html>

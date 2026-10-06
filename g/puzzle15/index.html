@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>数字华容道 · 谷谷乐园</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="description" content="数字华容道：谷谷乐园出品的经典滑块益智游戏，把打乱的 1-15 数字滑回正确顺序！手机点按、电脑鼠标都能玩。">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FFF7EC;color:#5C3D2E;-webkit-tap-highlight-color:transparent}
+.topbar{max-width:520px;margin:0 auto;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.topbar a.home{color:#8A6B58;text-decoration:none;font-size:14px}
+.container{width:500px;max-width:100%;margin:0 auto;padding:0 16px 30px}
+.heading{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin:14px 0}
+h1.title{font-size:30px;font-weight:900;color:#D97A12}
+.scores{display:flex;gap:8px}
+.score-box{background:#fff;border:2px solid #F3D9B8;border-radius:10px;padding:8px 18px;text-align:center;min-width:86px}
+.score-box .num{font-size:22px;font-weight:800}
+.score-box .label{font-size:12px;color:#B08D6E}
+.above{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+.intro{font-size:14px;color:#8A6B58;line-height:1.6}
+.restart{background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff;border:0;border-radius:999px;padding:10px 26px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(240,144,42,.35);white-space:nowrap}
+.game-wrap{position:relative;background:#E3B98A;border-radius:14px;padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.tile{aspect-ratio:1;background:#fff;border:2px solid #F3D9B8;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#D97A12;cursor:pointer;touch-action:manipulation;transition:transform .1s}
+.tile:active{transform:scale(.93)}
+.tile.empty{background:transparent;border:2px dashed #C99B6A;cursor:default}
+.msg{display:none;position:absolute;inset:12px;background:rgba(255,247,236,.92);border-radius:8px;z-index:10;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.msg.show{display:flex}
+.msg p{font-size:30px;font-weight:900}
+.msg .sub{font-size:15px;color:#8A6B58;line-height:1.6}
+.msg button{border:0;border-radius:999px;padding:10px 30px;font-size:16px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#F0902A,#FFB03A);color:#fff}
+.howto{margin-top:18px;font-size:14px;color:#8A6B58;line-height:1.8;background:#fff;border:2px solid #FFE3B8;border-radius:14px;padding:16px 18px}
+.howto b{color:#D97A12}
+.credit{margin-top:14px;font-size:12px;color:#B08D6E;text-align:center}
+</style>
+</head>
+<body>
+<div class="topbar"><a class="home" href="/">← 谷谷乐园</a><span style="font-size:13px;color:#B08D6E">🐾 小产品实验室</span></div>
+<div class="container">
+<div class="heading">
+<h1 class="title">🔢 数字华容道</h1>
+<div class="scores">
+<div class="score-box"><div class="num" id="score">0</div><div class="label">步数</div></div>
+<div class="score-box"><div class="num" id="best">0</div><div class="label">最少步数</div></div>
+</div>
+</div>
+<div class="above">
+<p class="intro">把打乱的数字滑回 1–15 的顺序，空格是关键！</p>
+<button class="restart" id="restart">新开一局</button>
+</div>
+<div class="game-wrap" id="wrap">
+<div class="board" id="board"></div>
+<div class="msg" id="msg"><p id="msgText">🎉 复原成功！</p><div class="sub" id="msgSub"></div><button id="again">再来一局</button></div>
+</div>
+<div class="howto"><b>🐾 玩法说明：</b>点击空格旁边（上 / 下 / 左 / 右相邻）的数字，它就会滑入空格。把 1–15 按顺序排好、空格留在右下角即胜利。每次洗牌都保证有解，放心玩！</div>
+<p class="credit">小产品实验室出品 · 谷谷乐园</p>
+</div>
+<script>
+(function(){
+"use strict";
+var boardEl=document.getElementById('board');
+var stepsEl=document.getElementById('score'), bestEl=document.getElementById('best');
+var msg=document.getElementById('msg'), msgSub=document.getElementById('msgSub');
+var S=null, tileEls=[], best=0;
+try{ best=parseInt(localStorage.getItem('gugujoy_puzzle15_best')||'0',10)||0; }catch(e){}
+bestEl.textContent=best;
+
+for(var i=0;i<16;i++){
+  var d=document.createElement('div');
+  d.className='tile';
+  (function(idx){ d.addEventListener('click',function(){ move(idx); }); })(i);
+  boardEl.appendChild(d);
+  tileEls.push(d);
+}
+function solvedBoard(){ var b=[],i; for(i=1;i<=15;i++) b.push(i); b.push(0); return b; }
+function neighbors(e){ var r=(e/4)|0, c=e%4, n=[]; if(r>0)n.push(e-4); if(r<3)n.push(e+4); if(c>0)n.push(e-1); if(c<3)n.push(e+1); return n; }
+function isSolved(b){ for(var i=0;i<15;i++) if(b[i]!==i+1) return false; return b[15]===0; }
+function reset(){
+  // 从已完成状态随机做 200 次合法移动来打乱，保证一定可解
+  var b=solvedBoard(), e=15, k, ns, p;
+  for(k=0;k<200;k++){
+    ns=neighbors(e);
+    p=ns[(Math.random()*ns.length)|0];
+    b[e]=b[p]; b[p]=0; e=p;
+  }
+  if(isSolved(b)){ // 极小概率恰好回到完成态，再动一步
+    ns=neighbors(e); p=ns[0];
+    b[e]=b[p]; b[p]=0; e=p;
+  }
+  S={board:b, empty:e, steps:0, alive:true};
+  stepsEl.textContent='0';
+  msg.classList.remove('show');
+  render();
+}
+function move(i){
+  if(!S.alive) return false;
+  if(neighbors(S.empty).indexOf(i)<0) return false; // 只有空格相邻的数字能滑
+  S.board[S.empty]=S.board[i];
+  S.board[i]=0;
+  S.empty=i;
+  S.steps++;
+  stepsEl.textContent=S.steps;
+  render();
+  if(isSolved(S.board)) win();
+  return true;
+}
+function render(){
+  for(var i=0;i<16;i++){
+    var v=S.board[i], el=tileEls[i];
+    el.textContent=(v===0?'':String(v));
+    el.classList.toggle('empty',v===0);
+  }
+}
+function win(){
+  S.alive=false;
+  var nb=false;
+  if(best===0||S.steps<best){ best=S.steps; nb=true; try{ localStorage.setItem('gugujoy_puzzle15_best',String(best)); }catch(e){} }
+  bestEl.textContent=best;
+  msgSub.textContent='用了 '+S.steps+' 步'+(nb?' · 🎉 新纪录！':' · 最少步数 '+best);
+  msg.classList.add('show');
+}
+document.getElementById('restart').onclick=reset;
+document.getElementById('again').onclick=reset;
+var wrap=document.getElementById('wrap');
+wrap.addEventListener('touchstart',function(){},{passive:true});
+wrap.addEventListener('touchmove',function(e){ e.preventDefault(); },{passive:false});
+reset();
+window.__test={reset:reset,state:function(){return S;},move:move,isSolved:isSolved,
+  setBoard:function(arr){ // 测试用：直接摆盘
+    S={board:arr.slice(), empty:arr.indexOf(0), steps:0, alive:true};
+    stepsEl.textContent='0'; msg.classList.remove('show'); render();
+  }};
+})();
+</script>
+</body>
+</html>
