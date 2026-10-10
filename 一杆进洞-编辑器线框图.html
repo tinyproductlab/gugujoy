@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>一杆进洞 · 关卡编辑器（线框图）</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#11161c;color:#e8eef2;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  /* 顶栏 */
+  #topbar{height:56px;background:#1a212b;border-bottom:1px solid #2a3441;display:flex;align-items:center;
+    padding:0 16px;gap:12px;flex-shrink:0}
+  .brand{font-size:16px;font-weight:800;white-space:nowrap}
+  .brand .tag{font-size:11px;font-weight:400;background:#3a4a5c;color:#9fb4c8;border-radius:6px;padding:2px 8px;margin-left:8px}
+  #levelName{background:#0f141a;border:1px solid #2a3441;color:#fff;border-radius:8px;padding:7px 12px;
+    font-size:14px;width:200px}
+  .top-actions{margin-left:auto;display:flex;gap:8px}
+  button{background:#2a3441;border:1px solid #3a4a5c;color:#e8eef2;border-radius:8px;padding:8px 14px;
+    font-size:13px;cursor:pointer}
+  button:hover{background:#344252}
+  button.primary{background:#2f7a42;border-color:#3f9a55;font-weight:700}
+  button.primary:hover{background:#35914c}
+  button.danger{background:#5c2626;border-color:#7a3434}
+  button.active{background:#3f5a35;border-color:#ffd75e;color:#ffd75e}
+  /* 主区 */
+  #main{flex:1;display:flex;min-height:0}
+  #toolbar{width:76px;background:#1a212b;border-right:1px solid #2a3441;display:flex;flex-direction:column;
+    align-items:center;padding:10px 0;gap:6px;flex-shrink:0;overflow-y:auto}
+  #toolbar button{width:60px;height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;font-size:11px;padding:4px}
+  #toolbar button .ic{font-size:20px}
+  #toolbar button .kbd{font-size:9px;color:#7a8fa3}
+  #toolbar button.active .kbd{color:#ffd75e}
+  /* 画布区 */
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;
+    background:#0d1117;background-image:radial-gradient(#1a222c 1px,transparent 1px);background-size:22px 22px;
+    overflow:auto;padding:20px}
+  #canvasWrap{position:relative}
+  #ecv{background:#1c5c2d;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.55);cursor:crosshair;touch-action:none}
+  #stageBar{position:absolute;left:0;right:0;bottom:-34px;display:flex;justify-content:space-between;
+    font-size:12px;color:#7a8fa3}
+  #stageBar label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  /* 右侧面板 */
+  #side{width:264px;background:#1a212b;border-left:1px solid #2a3441;padding:12px;overflow-y:auto;flex-shrink:0;
+    display:flex;flex-direction:column;gap:12px}
+  .card{background:#222b36;border:1px solid #2f3b49;border-radius:12px;padding:12px}
+  .card h3{font-size:13px;color:#9fb4c8;margin-bottom:10px;font-weight:700}
+  .frow{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}
+  .frow label{width:64px;color:#9fb4c8;flex-shrink:0}
+  .frow input,.frow select{flex:1;background:#0f141a;border:1px solid #2a3441;color:#fff;border-radius:6px;
+    padding:6px 8px;font-size:13px;min-width:0}
+  .frow input[type=range]{padding:0}
+  .row{display:flex;gap:8px;margin-top:8px}
+  .row button{flex:1}
+  #propsBox .empty{font-size:13px;color:#5c6f82;text-align:center;padding:14px 0}
+  #chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{width:44px;height:44px;border-radius:10px;background:#2a3441;border:1px solid #3a4a5c;color:#e8eef2;
+    font-size:14px;font-weight:700;cursor:pointer}
+  .chip.cur{background:#2f7a42;border-color:#ffd75e;color:#ffd75e}
+  .chip.locked{opacity:.45}
+  .tips ul{font-size:12px;color:#7a8fa3;line-height:1.9;padding-left:16px}
+  /* 状态栏 */
+  #statusbar{height:30px;background:#1a212b;border-top:1px solid #2a3441;display:flex;align-items:center;
+    padding:0 16px;font-size:12px;color:#7a8fa3;flex-shrink:0}
+  /* 导出弹窗 */
+  #exportModal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
+  #exportModal.hidden{display:none}
+  .modalBox{background:#222b36;border:1px solid #3a4a5c;border-radius:14px;padding:18px;width:min(520px,90vw)}
+  .modalBox h3{margin-bottom:10px}
+  #exportText{width:100%;height:300px;background:#0f141a;color:#9fe8a8;border:1px solid #2a3441;border-radius:8px;
+    font-family:monospace;font-size:12px;padding:10px;resize:vertical}
+  /* toast */
+  #toast{position:fixed;left:50%;bottom:52px;transform:translateX(-50%);background:rgba(20,26,34,.95);
+    border:1px solid #3a4a5c;color:#fff;padding:10px 20px;border-radius:24px;font-size:14px;display:none;z-index:60}
+</style>
+</head>
+<body>
+<header id="topbar">
+  <div class="brand">⛳ 一杆进洞 · 关卡编辑器<span class="tag">线框图 v0.1</span></div>
+  <input id="levelName" value="第6洞 · 回旋">
+  <div class="top-actions">
+    <button id="btnTest">▶ 测试游玩</button>
+    <button id="btnExport">⬇ 导出 JSON</button>
+    <button id="btnSave" class="primary">💾 保存</button>
+  </div>
+</header>
+<div id="main">
+  <nav id="toolbar"></nav>
+  <section id="stage">
+    <div id="canvasWrap">
+      <canvas id="ecv" width="360" height="560"></canvas>
+      <div id="stageBar">
+        <label><input type="checkbox" id="gridToggle" checked> 网格</label>
+        <span>画布 360×560 · 与游戏内一致</span>
+      </div>
+    </div>
+  </section>
+  <aside id="side">
+    <div class="card">
+      <h3>⚙️ 关卡设置</h3>
+      <div class="frow"><label>标准杆</label><input type="number" id="levelPar" value="3" min="1" max="9"></div>
+      <div class="frow"><label>最大杆数</label><input type="number" id="levelMax" value="8" min="1" max="20"></div>
+      <div class="frow"><label>提示语</label><input id="levelHint" value="借加速带回旋进洞"></div>
+    </div>
+    <div class="card">
+      <h3>🎯 选中元素</h3>
+      <div id="propsBox"><div class="empty">在画布上点选一个元素</div></div>
+      <div class="row">
+        <button id="btnDup">📋 复制</button>
+        <button id="btnDel" class="danger">🗑 删除</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🗂 关卡列表</h3>
+      <div id="chips"></div>
+    </div>
+    <div class="card tips">
+      <h3>💡 操作提示</h3>
+      <ul>
+        <li>选择工具点选 / 拖动元素</li>
+        <li>墙体·沙坑·加速带按住拖画</li>
+        <li>弹跳板 = 弹性&gt;1 的墙体</li>
+        <li>球洞 / 起点点一下摆放</li>
+        <li>Delete 键删除选中元素</li>
+      </ul>
+    </div>
+  </aside>
+</div>
+<footer id="statusbar"><span id="statusInfo"></span></footer>
+<div id="exportModal" class="hidden">
+  <div class="modalBox">
+    <h3>⬇ 关卡 JSON（可直接粘进游戏数据）</h3>
+    <textarea id="exportText" readonly></textarea>
+    <div class="row">
+      <button id="btnCopy" class="primary">复制</button>
+      <button id="btnCloseModal">关闭</button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const W=360,H=560,BR=9,HOLE_R=13;
+const cv=document.getElementById('ecv'),ctx=cv.getContext('2d');
+const snap=v=>Math.round(v/4)*4;
+
+/* 示例关卡数据（与游戏内格式一致） */
+const level={
+  name:'第6洞 · 回旋',par:3,max:8,hint:'借加速带回旋进洞',
+  start:{x:180,y:480},hole:{x:180,y:96},
+  walls:[
+    {x:36,y:180,w:14,h:150,b:1},
+    {x:310,y:180,w:14,h:150,b:1},
+    {x:120,y:300,w:120,h:14,b:1.6}
+  ],
+  zones:[
+    {type:'sand',x:100,y:380,w:160,h:64},
+    {type:'slope',x:130,y:130,w:100,h:56,ax:520,ay:0}
+  ]
+};
+
+/* 工具栏 */
+const TOOLS=[
+  {id:'select',ic:'🖱️',name:'选择',kbd:'V'},
+  {id:'wall',ic:'🧱',name:'墙体',kbd:'W'},
+  {id:'pad',ic:'🟧',name:'弹跳板',kbd:'B'},
+  {id:'sand',ic:'🟨',name:'沙坑',kbd:'S'},
+  {id:'slope',ic:'🌊',name:'加速带',kbd:'A'},
+  {id:'hole',ic:'⛳',name:'球洞',kbd:'H'},
+  {id:'start',ic:'●',name:'起点',kbd:'P'},
+  {id:'eraser',ic:'🧽',name:'橡皮擦',kbd:'E'},
+];
+let tool='select',sel=null,showGrid=true,drag=null;
+const toolbar=document.getElementById('toolbar');
+TOOLS.forEach(t=>{
+  const b=document.createElement('button');
+  b.innerHTML='<span class="ic">'+t.ic+'</span>'+t.name+'<span class="kbd">'+t.kbd+'</span>';
+  b.dataset.tool=t.id;
+  b.onclick=()=>setTool(t.id);
+  toolbar.appendChild(b);
+});
+function setTool(id){
+  tool=id;
+  toolbar.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.tool===id));
+  cv.style.cursor=id==='select'?'default':'crosshair';
+}
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  const k=e.key.toUpperCase();
+  const t=TOOLS.find(t=>t.kbd===k);
+  if(t)setTool(t.id);
+  if((e.key==='Delete'||e.key==='Backspace')&&sel){deleteSel();e.preventDefault();}
+  if(e.key==='Escape'){sel=null;refresh();}
+});
+
+/* 元素枚举 / 碰撞 */
+function items(){
+  const a=[];
+  level.zones.forEach(z=>a.push({kind:'zone',ref:z}));
+  level.walls.forEach(w=>a.push({kind:'wall',ref:w}));
+  a.push({kind:'hole',ref:level.hole});
+  a.push({kind:'start',ref:level.start});
+  return a;
+}
+function label(it){
+  if(it.kind==='hole')return'球洞';
+  if(it.kind==='start')return'起点';
+  if(it.kind==='wall')return it.ref.b>1?'弹跳板':'墙体';
+  return it.ref.type==='sand'?'沙坑':'加速带';
+}
+function geom(it){
+  const r=it.ref;
+  if(it.kind==='hole'||it.kind==='start')return{x:r.x-14,y:r.y-14,w:28,h:28};
+  return{x:r.x,y:r.y,w:r.w,h:r.h};
+}
+function hitTest(p){
+  const its=items();
+  for(let i=its.length-1;i>=0;i--){
+    const g=geom(its[i]);
+    if(p.x>=g.x&&p.x<=g.x+g.w&&p.y>=g.y&&p.y<=g.y+g.h)return its[i];
+  }
+  return null;
+}
+function evPos(e){
+  const r=cv.getBoundingClientRect();
+  return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};
+}
+
+/* 画布交互 */
+cv.addEventListener('pointerdown',e=>{
+  const p=evPos(e);
+  cv.setPointerCapture(e.pointerId);
+  if(tool==='eraser'){const it=hitTest(p);if(it){sel=it;deleteSel();}return;}
+  if(tool==='hole'){level.hole={x:snap(p.x),y:snap(p.y)};sel={kind:'hole',ref:level.hole};refresh();return;}
+  if(tool==='start'){level.start={x:snap(p.x),y:snap(p.y)};sel={kind:'start',ref:level.start};refresh();return;}
+  if(tool==='wall'||tool==='pad'||tool==='sand'||tool==='slope'){
+    drag={mode:'create',x0:p.x,y0:p.y,rect:null,kind:tool};
+    return;
+  }
+  const it=hitTest(p);
+  sel=it;
+  if(it)drag={mode:'move',x0:p.x,y0:p.y,ox:it.ref.x,oy:it.ref.y};
+  refresh();
+});
+cv.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const p=evPos(e);
+  if(drag.mode==='create'){
+    const x=Math.min(drag.x0,p.x),y=Math.min(drag.y0,p.y);
+    drag.rect={x:snap(x),y:snap(y),w:Math.max(8,snap(Math.abs(p.x-drag.x0))),h:Math.max(8,snap(Math.abs(p.y-drag.y0)))};
+  }else if(drag.mode==='move'&&sel){
+    sel.ref.x=snap(drag.ox+(p.x-drag.x0));
+    sel.ref.y=snap(drag.oy+(p.y-drag.y0));
+    refreshProps();
+  }
+  draw();
+});
+cv.addEventListener('pointerup',e=>{
+  if(drag&&drag.mode==='create'&&drag.rect){
+    const r=drag.rect;
+    if(drag.kind==='wall')level.walls.push({x:r.x,y:r.y,w:r.w,h:r.h,b:1});
+    else if(drag.kind==='pad')level.walls.push({x:r.x,y:r.y,w:r.w,h:r.h,b:1.6});
+    else if(drag.kind==='sand')level.zones.push({type:'sand',x:r.x,y:r.y,w:r.w,h:r.h});
+    else if(drag.kind==='slope')level.zones.push({type:'slope',x:r.x,y:r.y,w:r.w,h:r.h,ax:520,ay:0});
+  }
+  drag=null;refresh();
+});
+
+/* 属性面板 */
+const propsBox=document.getElementById('propsBox');
+function numRow(lab,val,cb,min,max,step){
+  return '<div class="frow"><label>'+lab+'</label><input type="number" value="'+val+'"'+
+    (min!==undefined?' min="'+min+'"':'')+(max!==undefined?' max="'+max+'"':'')+
+    ' step="'+(step||1)+'" data-k="'+cb+'"></div>';
+}
+function refreshProps(){
+  if(!sel){propsBox.innerHTML='<div class="empty">在画布上点选一个元素</div>';return;}
+  const r=sel.ref;
+  let h='<div class="frow"><label>类型</label><input value="'+label(sel)+'" disabled></div>';
+  h+=numRow('X',Math.round(r.x),'x')+numRow('Y',Math.round(r.y),'y');
+  if(sel.kind==='wall'||sel.kind==='zone'){
+    h+=numRow('宽 W',Math.round(r.w),'w',8)+numRow('高 H',Math.round(r.h),'h',8);
+  }
+  if(sel.kind==='wall'){
+    h+='<div class="frow"><label>弹性</label><input type="range" min="1" max="2" step="0.1" value="'+r.b+'" data-k="b">'+
+       '<span style="width:30px;text-align:right">'+r.b.toFixed(1)+'</span></div>';
+  }
+  if(sel.kind==='zone'&&r.type==='slope'){
+    const dirs=[['→ 右','520,0'],['← 左','-520,0'],['↓ 下','0,520'],['↑ 上','0,-520']];
+    const cur=r.ax+','+r.ay;
+    h+='<div class="frow"><label>方向</label><select data-k="dir">'+
+       dirs.map(d=>'<option value="'+d[1]+'"'+(d[1]===cur?' selected':'')+'>'+d[0]+'</option>').join('')+'</select></div>';
+    h+=numRow('力度',Math.max(Math.abs(r.ax),Math.abs(r.ay)),'pow',100,1200,20);
+  }
+  propsBox.innerHTML=h;
+  propsBox.querySelectorAll('input[data-k],select[data-k]').forEach(el=>{
+    el.oninput=()=>{
+      const k=el.dataset.k;
+      if(k==='dir'){const[a,b]=el.value.split(',').map(Number);r.ax=a;r.ay=b;}
+      else if(k==='pow'){const s=Math.sign(r.ax)||Math.sign(r.ay)||1;
+        if(r.ax!==0){r.ax=s*+el.value;r.ay=0;}else{r.ay=s*+el.value;r.ax=0;}}
+      else r[k]=+el.value;
+      if(k==='b')el.nextElementSibling.textContent=(+el.value).toFixed(1);
+      draw();
+    };
+  });
+}
+function deleteSel(){
+  if(!sel)return;
+  if(sel.kind==='wall')level.walls=level.walls.filter(w=>w!==sel.ref);
+  else if(sel.kind==='zone')level.zones=level.zones.filter(z=>z!==sel.ref);
+  sel=null;refresh();
+}
+document.getElementById('btnDel').onclick=deleteSel;
+document.getElementById('btnDup').onclick=()=>{
+  if(!sel||(sel.kind!=='wall'&&sel.kind!=='zone')){toast('只能复制墙体 / 区域类元素');return;}
+  const c=JSON.parse(JSON.stringify(sel.ref));
+  c.x=snap(c.x+16);c.y=snap(c.y+16);
+  (sel.kind==='wall'?level.walls:level.zones).push(c);
+  sel={kind:sel.kind,ref:c};refresh();
+};
+
+/* 关卡列表 */
+const chips=document.getElementById('chips');
+for(let i=1;i<=5;i++){
+  const c=document.createElement('button');
+  c.className='chip locked';c.textContent=i;
+  c.onclick=()=>toast('线框图演示：仅展示第 6 洞草稿');
+  chips.appendChild(c);
+}
+const c6=document.createElement('button');
+c6.className='chip cur';c6.textContent='6';
+chips.appendChild(c6);
+
+/* 顶栏 */
+function toast(t){
+  const e=document.getElementById('toast');
+  e.textContent=t;e.style.display='block';
+  clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',2200);
+}
+document.getElementById('btnTest').onclick=()=>toast('正式版：在此直接试玩当前关卡');
+document.getElementById('btnSave').onclick=()=>toast('已保存草稿（线框图演示）');
+document.getElementById('levelName').oninput=e=>{level.name=e.target.value;};
+document.getElementById('levelPar').oninput=e=>{level.par=+e.target.value||3;};
+document.getElementById('levelMax').oninput=e=>{level.max=+e.target.value||8;};
+document.getElementById('levelHint').oninput=e=>{level.hint=e.target.value;};
+document.getElementById('gridToggle').onchange=e=>{showGrid=e.target.checked;draw();};
+document.getElementById('btnExport').onclick=()=>{
+  document.getElementById('exportText').value=JSON.stringify(level,null,2);
+  document.getElementById('exportModal').classList.remove('hidden');
+};
+document.getElementById('btnCloseModal').onclick=()=>
+  document.getElementById('exportModal').classList.add('hidden');
+document.getElementById('btnCopy').onclick=()=>{
+  const t=document.getElementById('exportText');
+  t.select();
+  try{document.execCommand('copy');toast('已复制 JSON');}
+  catch(e){toast('复制失败，请手动复制');}
+};
+
+/* 渲染（复用游戏内美术风格） */
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);
+  c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+function draw(){
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#31914a');g.addColorStop(1,'#1c5c2d');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,255,255,.05)';
+  for(let y=0,i=0;y<H;y+=56,i++)if(i%2===0)ctx.fillRect(0,y,W,56);
+  const v=ctx.createRadialGradient(W/2,H/2,H*0.32,W/2,H/2,H*0.72);
+  v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.30)');
+  ctx.fillStyle=v;ctx.fillRect(0,0,W,H);
+  for(const z of level.zones){
+    if(z.type==='sand'){
+      ctx.fillStyle='#dfc078';rr(ctx,z.x,z.y,z.w,z.h,12);ctx.fill();
+      ctx.fillStyle='#d3ae5e';rr(ctx,z.x+5,z.y+5,z.w-10,z.h-10,9);ctx.fill();
+    }else{
+      ctx.fillStyle='rgba(110,190,255,.20)';rr(ctx,z.x,z.y,z.w,z.h,12);ctx.fill();
+      ctx.strokeStyle='rgba(150,215,255,.55)';ctx.lineWidth=2;
+      rr(ctx,z.x,z.y,z.w,z.h,12);ctx.stroke();
+      ctx.fillStyle='#fff';ctx.font='20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      const ch=z.ax>0?'➡':z.ax<0?'⬅':z.ay>0?'⬇':'⬆';
+      ctx.fillText(ch,z.x+z.w/2,z.y+z.h/2);
+      ctx.textBaseline='alphabetic';
+    }
+  }
+  for(const r of level.walls){
+    const isPad=r.b>1;
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=10;ctx.shadowOffsetY=4;
+    ctx.fillStyle=isPad?'#ef8f3c':'#66798c';
+    rr(ctx,r.x,r.y,r.w,r.h,6);ctx.fill();
+    ctx.restore();
+    ctx.fillStyle=isPad?'rgba(255,255,255,.4)':'rgba(255,255,255,.22)';
+    rr(ctx,r.x+3,r.y+3,r.w-6,Math.min(7,r.h-6),3);ctx.fill();
+  }
+  // 球洞+旗
+  const hh=level.hole;
+  const hg=ctx.createRadialGradient(hh.x-3,hh.y-4,2,hh.x,hh.y,HOLE_R);
+  hg.addColorStop(0,'#000');hg.addColorStop(1,'#20301f');
+  ctx.fillStyle=hg;ctx.beginPath();ctx.arc(hh.x,hh.y,HOLE_R,0,7);ctx.fill();
+  ctx.strokeStyle='#f2f2f2';ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(hh.x,hh.y,HOLE_R,0,7);ctx.stroke();
+  ctx.strokeStyle='#e8e8e8';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(hh.x,hh.y);ctx.lineTo(hh.x,hh.y-32);ctx.stroke();
+  ctx.fillStyle='#e63946';
+  ctx.beginPath();ctx.moveTo(hh.x,hh.y-32);ctx.lineTo(hh.x+22,hh.y-25);ctx.lineTo(hh.x,hh.y-17);
+  ctx.closePath();ctx.fill();
+  // 起点
+  const st=level.start;
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.setLineDash([5,4]);
+  ctx.beginPath();ctx.arc(st.x,st.y,BR+4,0,7);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fff';ctx.font='10px sans-serif';ctx.textAlign='center';
+  ctx.fillText('起点',st.x,st.y-16);
+  // 网格
+  if(showGrid){
+    ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let x=0;x<=W;x+=24){ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,H);}
+    for(let y=0;y<=H;y+=24){ctx.moveTo(0,y+.5);ctx.lineTo(W,y+.5);}
+    ctx.stroke();
+  }
+  // 正在创建的矩形
+  if(drag&&drag.mode==='create'&&drag.rect){
+    const r=drag.rect;
+    ctx.strokeStyle='#ffd75e';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.setLineDash([]);
+  }
+  // 选中高亮
+  if(sel){
+    const gg=geom(sel);
+    ctx.strokeStyle='#ffd75e';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+    ctx.strokeRect(gg.x-4,gg.y-4,gg.w+8,gg.h+8);ctx.setLineDash([]);
+    ctx.fillStyle='#ffd75e';
+    [[gg.x-4,gg.y-4],[gg.x+gg.w+4,gg.y-4],[gg.x-4,gg.y+gg.h+4],[gg.x+gg.w+4,gg.y+gg.h+4]]
+      .forEach(p=>{ctx.fillRect(p[0]-3,p[1]-3,6,6);});
+  }
+}
+function refresh(){
+  draw();refreshProps();
+  const n=items().length;
+  document.getElementById('statusInfo').textContent=
+    '元素 '+n+' 个 · '+(sel?('已选中：'+label(sel)):'未选中')+' · 网格 '+(showGrid?'开':'关');
+}
+setTool('select');
+refresh();
+/* 冒烟测试钩子 */
+window.__ed={level,items,hitTest,setTool,get sel(){return sel;},get tool(){return tool;},draw};
+</script>
+</body>
+</html>
