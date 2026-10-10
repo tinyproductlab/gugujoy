@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>一杆进洞 · 试玩小样</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#0e1a12;color:#fff;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    display:flex;justify-content:center;min-height:100vh}
+  #app{width:100%;max-width:480px;min-height:100vh;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#14301c 0%,#0e1a12 100%);padding:12px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .topbar .t{font-size:16px;font-weight:700}
+  .topbar .t small{font-weight:400;color:#9fd8a8;font-size:12px}
+  .iconbtn{background:#1e3a26;border:1px solid #2f5a3a;color:#fff;border-radius:10px;
+    padding:6px 12px;font-size:14px;margin-left:6px}
+  #wrap{position:relative;flex:1;display:flex;justify-content:center}
+  canvas{background:#1b4d2a;border-radius:16px;border:2px solid #2f5a3a;touch-action:none;
+    max-width:100%;max-height:72vh}
+  #menu{text-align:center;padding:30px 10px}
+  #menu h1{font-size:34px;margin:10px 0 4px}
+  #menu .sub{color:#9fd8a8;font-size:14px;margin-bottom:24px}
+  #lvGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+  .lvBtn{background:#1e3a26;border:2px solid #2f5a3a;border-radius:14px;padding:16px 6px;color:#fff;cursor:pointer}
+  .lvBtn:active{transform:scale(.95)}
+  .lvBtn .n{font-size:20px;font-weight:800}
+  .lvBtn .s{font-size:13px;color:#ffd75e;margin-top:4px;min-height:18px}
+  .lvBtn .p{font-size:11px;color:#9fd8a8}
+  #menu .rule{background:rgba(255,255,255,.06);border-radius:12px;padding:12px;font-size:13px;
+    text-align:left;line-height:2;color:#d8ecd8}
+  #totalStars{color:#ffd75e;font-size:14px;margin-bottom:14px}
+  #hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:14px}
+  #hud b{color:#ffd75e}
+  #toast{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.78);
+    padding:14px 22px;border-radius:14px;font-size:16px;text-align:center;display:none;z-index:5;
+    border:1px solid #2f5a3a;max-width:86%;line-height:1.8}
+  #overlay{position:fixed;inset:0;background:rgba(5,10,7,.9);display:none;align-items:center;
+    justify-content:center;z-index:50}
+  #overlay.show{display:flex}
+  #ovCard{background:#1e3a26;border:2px solid #2f5a3a;border-radius:18px;padding:28px 34px;text-align:center}
+  #ovCard .big{font-size:30px;font-weight:900;margin-bottom:6px}
+  #ovCard .stars{font-size:34px;margin:8px 0;letter-spacing:6px}
+  #ovCard .info{color:#9fd8a8;font-size:14px;margin-bottom:18px}
+  .btn{display:block;width:100%;border:none;border-radius:14px;padding:13px;font-size:17px;font-weight:700;
+    background:linear-gradient(180deg,#7ed491,#4c9a5f);color:#0c1f10;margin-bottom:10px;cursor:pointer}
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:#2a4a32;color:#fff;border:1px solid #3f6a4a;font-weight:400;font-size:15px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="t">⛳ 一杆进洞 <small>试玩小样</small></div>
+    <div><button class="iconbtn" id="muteBtn">🔊</button></div>
+  </div>
+
+  <div id="menu">
+    <h1>⛳</h1>
+    <div class="sub">拖拽拉杆，一杆进洞</div>
+    <div id="totalStars"></div>
+    <div id="lvGrid"></div>
+    <div class="rule">
+      🖐️ 按住小球往后拖，松手击球（带轨迹预览）<br>
+      ⭐ 杆数 ≤ 标准杆 → 3 星；多 1 杆 → 2 星<br>
+      🟧 橙色是弹跳板，🟨 沙坑减速，💨 箭头是加速带
+    </div>
+  </div>
+
+  <div id="gameUI" class="hidden" style="display:flex;flex-direction:column;flex:1">
+    <div id="hud">
+      <span id="hudName"></span>
+      <span>杆数 <b id="hudStrokes">0</b> / 标准 <b id="hudPar">1</b></span>
+      <span>
+        <button class="iconbtn" id="retryBtn">↻</button><button class="iconbtn" id="menuBtn">☰</button>
+      </span>
+    </div>
+    <div id="wrap">
+      <canvas id="cv" width="360" height="560"></canvas>
+      <div id="toast"></div>
+    </div>
+  </div>
+
+  <div id="overlay"><div id="ovCard">
+    <div class="big" id="ovBig"></div>
+    <div class="stars" id="ovStars"></div>
+    <div class="info" id="ovInfo"></div>
+    <button class="btn" id="ovNext">下一关 ▶</button>
+    <button class="btn ghost" id="ovRetry">再来一次 ↻</button>
+    <button class="btn ghost" id="ovMenu">选关 ☰</button>
+  </div></div>
+</div>
+
+<script>
+"use strict";
+/* ================= 纯逻辑部分（物理+关卡，可被 node 测试） ================= */
+const W=360,H=560,BR=9,HOLE_R=15;
+const LEVELS=[
+ {name:'第一洞 · 直球',par:1,max:3,hint:'按住小球往后拖，松手击球',
+  start:{x:180,y:470},hole:{x:180,y:130},walls:[],zones:[]},
+ {name:'第二洞 · 借力打力',par:2,max:4,hint:'墙挡路了，从上面绕过去',
+  start:{x:60,y:480},hole:{x:300,y:470},
+  walls:[{x:150,y:380,w:60,h:180}],zones:[]},
+ {name:'第三洞 · 沙坑',par:3,max:5,hint:'沙坑减速，绕行更省杆',
+  start:{x:60,y:480},hole:{x:300,y:80},walls:[],
+  zones:[{x:80,y:170,w:200,h:220,type:'sand'}]},
+ {name:'第四洞 · 弹跳板',par:3,max:5,hint:'橙色弹跳板会加速，借它拐弯',
+  start:{x:60,y:480},hole:{x:300,y:80},
+  walls:[{x:120,y:240,w:16,h:200},{x:136,y:280,w:14,h:120,b:1.5}],zones:[]},
+ {name:'第五洞 · 综合',par:3,max:6,hint:'加速带+沙坑+弹跳板，全都要',
+  start:{x:70,y:480},hole:{x:290,y:90},
+  walls:[{x:150,y:200,w:20,h:120},{x:330,y:120,w:14,h:160,b:1.4}],
+  zones:[{x:40,y:330,w:130,h:90,type:'slope',ax:900,ay:0},{x:200,y:150,w:110,h:110,type:'sand'}]},
+];
+function boundaryWalls(){
+  const t=30;
+  return [{x:-t,y:-t,w:W+2*t,h:t},{x:-t,y:H,w:W+2*t,h:t},
+          {x:-t,y:0,w:t,h:H},{x:W,y:0,w:t,h:H}];
+}
+function collideWalls(b,walls){
+  for(const r of walls){
+    const cx=Math.max(r.x,Math.min(b.x,r.x+r.w)),
+          cy=Math.max(r.y,Math.min(b.y,r.y+r.h));
+    const dx=b.x-cx,dy=b.y-cy,d2=dx*dx+dy*dy;
+    if(d2<BR*BR){
+      let d=Math.sqrt(d2),nx,ny;
+      if(d>0.01){nx=dx/d;ny=dy/d;}
+      else{
+        const l=b.x-r.x,rr=r.x+r.w-b.x,tp=b.y-r.y,bt=r.y+r.h-b.y,
+              m=Math.min(l,rr,tp,bt);
+        if(m===l){nx=-1;ny=0;}else if(m===rr){nx=1;ny=0;}
+        else if(m===tp){nx=0;ny=-1;}else{nx=0;ny=1;}
+      }
+      b.x=cx+nx*BR;b.y=cy+ny*BR;
+      const vn=b.vx*nx+b.vy*ny;
+      if(vn<0){
+        const e=(r.b||0.72);
+        b.vx-=(1+e)*vn*nx;b.vy-=(1+e)*vn*ny;
+        return {hit:true,pad:e>1};
+      }
+    }
+  }
+  return {hit:false,pad:false};
+}
+function stepPhysics(b,lv,dt){
+  let fr=0.986,ax=0,ay=0;
+  for(const z of lv.zones||[]){
+    if(b.x>z.x&&b.x<z.x+z.w&&b.y>z.y&&b.y<z.y+z.h){
+      if(z.type==='sand')fr=0.93;
+      if(z.type==='slope'){ax+=z.ax||0;ay+=z.ay||0;}
+    }
+  }
+  b.vx+=ax*dt;b.vy+=ay*dt;
+  const f=Math.pow(fr,dt*60);b.vx*=f;b.vy*=f;
+  const walls=boundaryWalls().concat(lv.walls||[]);
+  let hit=false,pad=false;
+  const sub=4,sdt=dt/sub;
+  for(let i=0;i<sub;i++){
+    b.x+=b.vx*sdt;b.y+=b.vy*sdt;
+    const r=collideWalls(b,walls);
+    if(r.hit){hit=true;if(r.pad)pad=true;}
+  }
+  const sp=Math.hypot(b.vx,b.vy);
+  if(sp<12){b.vx=0;b.vy=0;}
+  const h=lv.hole,dx=b.x-h.x,dy=b.y-h.y;
+  if(dx*dx+dy*dy<HOLE_R*HOLE_R*0.72)return {captured:true,hit,pad,stopped:false};
+  return {captured:false,hit,pad,stopped:sp<12};
+}
+function simShot(lv,sx,sy,vx,vy,maxSteps){
+  const b={x:sx,y:sy,vx,vy};let hit=false,pad=false;
+  const n=maxSteps||2400;
+  for(let i=0;i<n;i++){
+    const r=stepPhysics(b,lv,1/60);
+    if(r.hit)hit=true;if(r.pad)pad=true;
+    if(r.captured)return {captured:true,x:b.x,y:b.y,hit,pad};
+    if(r.stopped)return {captured:false,x:b.x,y:b.y,hit,pad};
+  }
+  return {captured:false,x:b.x,y:b.y,hit,pad};
+}
+function previewPath(lv,sx,sy,vx,vy){
+  const b={x:sx,y:sy,vx,vy},pts=[];
+  for(let i=0;i<220;i++){
+    const r=stepPhysics(b,lv,1/60);
+    if(i%4===0)pts.push([b.x,b.y]);
+    if(r.captured||r.stopped)break;
+  }
+  return pts;
+}
+
+/* ================= 表现层（DOM/canvas） ================= */
+const $=id=>document.getElementById(id);
+const cv=$('cv'),ctx=cv.getContext('2d');
+const store=(()=>{try{return JSON.parse(localStorage.getItem('ygjd')||'{}');}catch(e){return {};}})();
+const S={stars:store.stars||[0,0,0,0,0],li:0,strokes:0,
+  ball:{x:0,y:0,vx:0,vy:0},aiming:false,ax:0,ay:0,playing:false,muted:false,raf:0,shake:0};
+function save(){try{localStorage.setItem('ygjd',JSON.stringify({stars:S.stars}));}catch(e){}}
+
+/* 音效 */
+let AC=null;
+function beep(f,d,type,vol){if(S.muted)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();
+  const o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.value=f;
+  g.gain.setValueAtTime(vol||.08,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);
+  o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d);}catch(e){}}
+const sClick=()=>beep(520,.06),sShoot=()=>beep(180,.12,'triangle',.12),
+  sTick=()=>beep(700,.04,'square',.04),sPad=()=>{beep(300,.08,'square',.08);setTimeout(()=>beep(600,.1,'square',.08),60);},
+  sHole=()=>{[523,659,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,.14,'sine',.1),i*90));};
+
+/* 渲染 */
+function draw(){
+  const lv=LEVELS[S.li],b=S.ball;
+  ctx.save();
+  if(S.shake>0){ctx.translate((Math.random()-.5)*S.shake,(Math.random()-.5)*S.shake);S.shake*=.85;if(S.shake<.5)S.shake=0;}
+  // 草地
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#2a6b3a');g.addColorStop(1,'#1b4d2a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // zones
+  for(const z of lv.zones||[]){
+    if(z.type==='sand'){ctx.fillStyle='#d9c27a';ctx.fillRect(z.x,z.y,z.w,z.h);
+      ctx.fillStyle='rgba(0,0,0,.08)';
+      for(let i=0;i<z.w;i+=18)for(let j=0;j<z.h;j+=18){ctx.beginPath();ctx.arc(z.x+i+9,z.y+j+9,2,0,7);ctx.fill();}
+    }else if(z.type==='slope'){
+      ctx.fillStyle='rgba(120,200,255,.25)';ctx.fillRect(z.x,z.y,z.w,z.h);
+      ctx.fillStyle='rgba(255,255,255,.6)';ctx.font='20px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+      const ch=z.ax>0?'➡':(z.ax<0?'⬅':(z.ay>0?'⬇':'⬆'));
+      const horiz=z.ax!==0;
+      for(let i=-1;i<=1;i++)
+        ctx.fillText(ch,z.x+z.w/2+(horiz?i*30:0),z.y+z.h/2+(horiz?0:i*30));
+      ctx.textBaseline='alphabetic';
+    }
+  }
+  // walls
+  for(const r of lv.walls||[]){
+    ctx.fillStyle=(r.b&&r.b>1)?'#e8862e':'#6b4a2f';
+    ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=2;
+    roundRect(r.x,r.y,r.w,r.h,4);ctx.fill();ctx.stroke();
+    if(r.b&&r.b>1){ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText('弹',r.x+r.w/2,r.y+r.h/2+4);}
+  }
+  // hole
+  const h=lv.hole;
+  ctx.fillStyle='#0a0f0a';ctx.beginPath();ctx.arc(h.x,h.y,HOLE_R,0,7);ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(h.x,h.y,HOLE_R,0,7);ctx.stroke();
+  ctx.strokeStyle='#c00';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(h.x,h.y);ctx.lineTo(h.x,h.y-26);ctx.stroke();
+  ctx.fillStyle='#e33';ctx.beginPath();ctx.moveTo(h.x,h.y-26);ctx.lineTo(h.x+16,h.y-20);ctx.lineTo(h.x,h.y-14);ctx.fill();
+  // preview
+  if(S.aiming){
+    const dx=S.ax-S.ball.x,dy=S.ay-S.ball.y;
+    const pull=Math.hypot(dx,dy);
+    if(pull>10){
+      const k=8.5,pw=Math.min(pull,170);
+      const pvx=-(dx/pull)*pw*k, pvy=-(dy/pull)*pw*k;
+      const pts=previewPath(lv,b.x,b.y,pvx,pvy);
+      ctx.fillStyle='rgba(255,255,255,.65)';
+      pts.forEach((p,i)=>{if(i%2===0){ctx.beginPath();ctx.arc(p[0],p[1],2.5,0,7);ctx.fill();}});
+      // 拉杆线
+      ctx.strokeStyle=pull>120?'#ff5252':'#fff';ctx.lineWidth=4;
+      ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x+dx,b.y+dy);ctx.stroke();
+    }
+  }
+  // ball
+  if(!S.sunk){
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b.x,b.y,BR,0,7);ctx.fill();
+    ctx.fillStyle='#e33';ctx.beginPath();ctx.arc(b.x,b.y,3.5,0,7);ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.25)';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(b.x,b.y,BR,0,7);ctx.stroke();
+  }
+  ctx.restore();
+}
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+/* 主循环 */
+let lastT=0,acc=0;
+function loop(t){
+  if(!S.playing)return;
+  const dt=Math.min((t-lastT)/1000,.05);lastT=t;
+  const b=S.ball,lv=LEVELS[S.li];
+  if(!S.sunk&&(b.vx||b.vy)){
+    const r=stepPhysics(b,lv,dt);
+    if(r.hit&&!r._s){sTick();S.shake=3;}
+    if(r.pad){sPad();S.shake=5;}
+    if(r.captured)onCapture();
+  }
+  draw();
+  S.raf=requestAnimationFrame(loop);
+}
+
+/* 流程 */
+function toast(t,ms){const e=$('toast');e.innerHTML=t;e.style.display='block';
+  clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms||2200);}
+function openLevel(i){
+  S.li=i;S.strokes=0;S.sunk=false;
+  const lv=LEVELS[i];
+  S.ball={x:lv.start.x,y:lv.start.y,vx:0,vy:0};
+  $('menu').classList.add('hidden');$('gameUI').classList.remove('hidden');
+  $('hudName').textContent=lv.name;$('hudPar').textContent=lv.par;
+  $('hudStrokes').textContent='0';
+  $('overlay').classList.remove('show');
+  S.playing=true;lastT=performance.now();
+  cancelAnimationFrame(S.raf);S.raf=requestAnimationFrame(loop);
+  toast('⛳ '+lv.name+'<br><span style="font-size:13px;color:#cfe8cf">'+lv.hint+'</span>',2600);
+}
+function shoot(vx,vy){
+  const b=S.ball;if(b.vx||b.vy||S.sunk||!S.playing)return;
+  b.vx=vx;b.vy=vy;S.strokes++;$('hudStrokes').textContent=S.strokes;sShoot();
+}
+function onCapture(){
+  S.sunk=true;sHole();
+  const lv=LEVELS[S.li],st=S.strokes;
+  const stars=st<=lv.par?3:(st<=lv.par+1?2:1);
+  S.stars[S.li]=Math.max(S.stars[S.li],stars);save();
+  setTimeout(()=>{
+    $('ovBig').textContent=st===1?'🎉 一杆进洞！':'⛳ 进洞！';
+    $('ovStars').textContent='⭐'.repeat(stars)+'☆'.repeat(3-stars);
+    $('ovInfo').textContent='用时 '+st+' 杆（标准 '+lv.par+' 杆）';
+    $('ovNext').style.display=S.li<LEVELS.length-1?'block':'none';
+    $('overlay').classList.add('show');S.playing=false;
+  },600);
+}
+function failLevel(){
+  if(S.sunk||!S.playing)return;
+  S.playing=false;
+  $('ovBig').textContent='😅 超杆了';
+  $('ovStars').textContent='';
+  $('ovInfo').textContent='本洞最多 '+LEVELS[S.li].max+' 杆，再试一次';
+  $('ovNext').style.display='none';
+  $('overlay').classList.add('show');
+}
+
+/* 输入：拖拽拉杆 */
+function pos(e){const r=cv.getBoundingClientRect();
+  return {x:(e.clientX-r.left)/r.width*W,y:(e.clientY-r.top)/r.height*H};}
+cv.addEventListener('pointerdown',e=>{
+  const b=S.ball;if(!S.playing||S.sunk||b.vx||b.vy)return;
+  const p=pos(e);S.aiming=true;S.ax=p.x;S.ay=p.y;cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener('pointermove',e=>{
+  if(!S.aiming)return;const p=pos(e);S.ax=p.x;S.ay=p.y;
+});
+cv.addEventListener('pointerup',e=>{
+  if(!S.aiming)return;S.aiming=false;
+  const b=S.ball,dx=S.ax-b.x,dy=S.ay-b.y,pull=Math.hypot(dx,dy);
+  if(pull<12)return;
+  const k=8.5,pw=Math.min(pull,170);
+  shoot(-dx/pull*pw*k,-dy/pull*pw*k);
+});
+cv.addEventListener('pointercancel',()=>{S.aiming=false;});
+
+/* 菜单 */
+function renderMenu(){
+  const g=$('lvGrid');g.innerHTML='';
+  LEVELS.forEach((lv,i)=>{
+    const d=document.createElement('button');d.className='lvBtn';
+    d.innerHTML='<div class="n">第 '+(i+1)+' 洞</div><div class="s">'+
+      ('⭐'.repeat(S.stars[i])||'未通关')+'</div><div class="p">标准 '+lv.par+' 杆</div>';
+    d.onclick=()=>{sClick();openLevel(i);};
+    g.appendChild(d);
+  });
+  const tot=S.stars.reduce((a,b)=>a+b,0);
+  $('totalStars').textContent='⭐ 已获得 '+tot+' / '+LEVELS.length*3+' 星';
+}
+$('ovNext').onclick=()=>{sClick();openLevel(S.li+1);};
+$('ovRetry').onclick=()=>{sClick();openLevel(S.li);};
+$('ovMenu').onclick=()=>{sClick();$('overlay').classList.remove('show');
+  $('gameUI').classList.add('hidden');$('menu').classList.remove('hidden');S.playing=false;renderMenu();};
+$('retryBtn').onclick=()=>{sClick();openLevel(S.li);};
+$('menuBtn').onclick=()=>{sClick();S.playing=false;cancelAnimationFrame(S.raf);
+  $('gameUI').classList.add('hidden');$('menu').classList.remove('hidden');renderMenu();};
+$('muteBtn').onclick=()=>{S.muted=!S.muted;$('muteBtn').textContent=S.muted?'🔇':'🔊';if(!S.muted)sClick();};
+// 每杆后检查超杆
+const _shoot=shoot;
+shoot=function(vx,vy){
+  _shoot(vx,vy);
+  if(S.strokes>LEVELS[S.li].max)setTimeout(failLevel,1500);
+};
+renderMenu();
+</script>
+</body>
+</html>
